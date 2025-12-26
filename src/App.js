@@ -745,8 +745,8 @@ function AppContent() {
   const [error, setError] = useState(null);
   const [formErrors, setFormErrors] = useState({});
   const handleClose = () => {
-    size = ""; // サイズをリセット
-    otherSize = ""; // その他のサイズをリセット
+    setSize(""); // サイズをリセット
+    setOtherSize(""); // その他のサイズをリセット
     setShow(false);
     setIsSubmitting(false); // 送信状態を解除
   };
