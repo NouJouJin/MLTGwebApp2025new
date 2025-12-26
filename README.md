@@ -109,21 +109,24 @@ cp .env.example .env
 
 ### 環境変数の設定
 
-`.env` ファイルに以下を設定：
+`.env.local` ファイルをローカル開発用に作成し、Vercelでは管理画面で環境変数を設定します。
 
+**サーバーサイド環境変数**（Vercel管理画面で設定）:
 ```bash
-# ソースマップ生成（本番環境では false を推奨）
-GENERATE_SOURCEMAP=false
-
-# Moralis API Key（https://moralis.io/ で取得）
-REACT_APP_MORALIS_API_KEY=your_moralis_api_key_here
-
-# ThirdWeb Client ID（https://thirdweb.com/ で取得）
-REACT_APP_THIRDWEB_CLIENT_ID=your_thirdweb_client_id_here
-
-# Airtable API Key（https://airtable.com/create/tokens で取得）
-REACT_APP_AIRTABLE_API_KEY=your_airtable_api_key_here
+MORALIS_API_KEY=your_moralis_api_key
+AIRTABLE_API_KEY=your_airtable_api_key
+AIRTABLE_BASE_ID=your_base_id
+AIRTABLE_NFT_TABLE_ID=your_nft_table_id
+AIRTABLE_ORDERS_TABLE_ID=your_orders_table_id
+NFT_CONTRACT_ADDRESS=your_contract_address
 ```
+
+**クライアントサイド環境変数**:
+```bash
+REACT_APP_THIRDWEB_CLIENT_ID=your_thirdweb_client_id
+```
+
+> **セキュリティ**: APIキーはサーバーサイドのみで使用され、ブラウザには露出しません。
 
 詳細なセットアップ手順は [SETUP_GUIDE.md](SETUP_GUIDE.md) を参照してください。
 

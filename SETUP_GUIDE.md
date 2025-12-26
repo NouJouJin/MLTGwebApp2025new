@@ -250,11 +250,11 @@ yarn install
    - ✅ `data.records:write`
 
 7. ベースを選択:
-   - `appq0R9tJ2BkvKhRt` を選択（MLTG用ベース）
+   - 管理者から共有されたMLTG用ベースを選択
 
 8. 「Create token」をクリック
 
-9. トークンをコピー（`pat03Tla2ix8YDjUG.fb25c1823ec93914194e26699728d0c10923bdb68aa71fc7301a059bdf5990d7` のような文字列）
+9. トークンをコピー（`patXXXXX.XXXXXXXX...` のような文字列）
 
 ⚠️ **トークンは一度しか表示されないので、必ず安全に保管してください**
 

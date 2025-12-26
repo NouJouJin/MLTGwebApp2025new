@@ -203,7 +203,7 @@ src/
 
 **対象コントラクト**:
 ```
-0x30961b851A8A766014E53955694b3210718066e5
+環境変数 NFT_CONTRACT_ADDRESS で設定
 ```
 
 **データ構造**:
@@ -272,15 +272,8 @@ if (Object.keys(errors).length > 0) {
 
 **対象Key ID**:
 ```javascript
-[
-  "rec65kFu48ut5GPhC", "recB1VbiT6bR7TMnH",
-  "recqCurt5f435BcVf", "recj2JF2UnJU2ixXw",
-  "reclz4Dg5QS8VnJZ0", "recyBnzU9IzYtJuCT",
-  "recK0sK8Hzq6ffghW", "recs6Mdq8UFgEjpPD",
-  "recjmIXtdNbAdMQnd", "rec5noihUnn4JYDeV",
-  "recCafjYmJ2gX9K0l", "reclxuPXKWLkCjmVE",
-  "recbf3QmOkvjog5FM"
-]
+// Tシャツ交換対象のAirtable Record IDリスト
+// 詳細は管理者に確認してください
 ```
 
 **追加フィールド**:
@@ -463,20 +456,16 @@ Response:
 
 ### Airtable API
 
-**Base ID**: `appq0R9tJ2BkvKhRt`
+**Base ID**: 環境変数 `AIRTABLE_BASE_ID` で設定
 
 #### Token情報取得
 
 ```
-GET /v0/{baseId}/{tableId}
-
-Table: tblGeRuC0iRypjYfl
+GET /api/airtable-nft-info
 
 Query Parameters:
-- filterByFormula: AND条件での絞り込み
-
-Headers:
-- Authorization: Bearer {REACT_APP_AIRTABLE_API_KEY}
+- tokenAddress: NFTのコントラクトアドレス
+- tokenId: トークンID
 
 Response:
 {
@@ -497,12 +486,9 @@ Response:
 #### 注文データ保存
 
 ```
-POST /v0/{baseId}/{tableId}
-
-Table: tbld2laNlKCi7B2GW
+POST /api/airtable-orders
 
 Headers:
-- Authorization: Bearer {REACT_APP_AIRTABLE_API_KEY}
 - Content-Type: application/json
 
 Body:
@@ -525,6 +511,8 @@ Body:
   ]
 }
 ```
+
+> **注意**: APIキーはサーバーサイドで管理されているため、クライアントから直接Airtable APIを呼び出すことはできません。必ず `/api/*` エンドポイントを使用してください。
 
 ---
 
