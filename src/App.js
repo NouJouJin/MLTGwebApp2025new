@@ -1,4 +1,4 @@
-import { ThirdwebProvider, walletConnect, useActiveAccount, useActiveWallet, useChainId, useSDK, useSigner } from "@thirdweb-dev/react";
+import { ThirdwebProvider, walletConnect, useAddress, useChainId, useSigner } from "@thirdweb-dev/react";
 import { ConnectWallet } from "@thirdweb-dev/react"; // ConnectWallet コンポーネントもインポート
 import { ThirdwebSDK } from "@thirdweb-dev/sdk";
 import { ethers } from "ethers";
@@ -718,8 +718,7 @@ const handleSubmit = async (account, nft, chainName, size, otherSize, handleClos
 
 function App() {
   // ThirdWebのフックを使用してウォレット情報を取得
-  const activeAccount = useActiveAccount();
-  const activeWallet = useActiveWallet();
+  const walletAddress = useAddress(); // v3系のフック
   const connectedChainId = useChainId();
   const signer = useSigner();
 
@@ -808,9 +807,9 @@ function App() {
   // WalletConnect接続時の処理（ThirdWebフック使用）
   useEffect(() => {
     const handleWalletConnection = async () => {
-      if (activeAccount && activeAccount.address) {
+      if (walletAddress) {
         // WalletConnectまたはThirdWeb経由でウォレットが接続されている場合
-        setAccount(activeAccount.address);
+        setAccount(walletAddress);
 
         if (connectedChainId) {
           setChainId(connectedChainId);
@@ -818,13 +817,13 @@ function App() {
           setChainName(chainName);
 
           // NFT情報を取得（WalletConnect接続時）
-          await fetchNFTsForWalletConnect(activeAccount.address, chainName, setNfts, setLoading, setError);
+          await fetchNFTsForWalletConnect(walletAddress, chainName, setNfts, setLoading, setError);
         }
       }
     };
 
     handleWalletConnection();
-  }, [activeAccount, connectedChainId]);
+  }, [walletAddress, connectedChainId]);
 
   // MetaMask接続時の処理（従来の方法）
   useEffect(() => {
