@@ -716,7 +716,7 @@ const handleSubmit = async (account, nft, chainName, size, otherSize, handleClos
   }
 };
 
-function App() {
+function AppContent() {
   // ThirdWebのフックを使用してウォレット情報を取得
   const walletAddress = useAddress(); // v3系のフック
   const connectedChainId = useChainId();
@@ -853,12 +853,6 @@ function App() {
   }, [account]);
 
   return (
-    // 追加
-    <ThirdwebProvider
-    activeChain="polygon" // または "polygon" や "base" など、使いたいチェーン
-    clientId={process.env.REACT_APP_THIRDWEB_CLIENT_ID}
-    supportedWallets={[walletConnect()]}
-  >
     <div className="App d-flex flex-column">
       <div className="mb-auto w-100">
         <>
@@ -1164,6 +1158,18 @@ function App() {
         </div>
         <footer className="mt-auto p-3">Ideated by Studymeter Inc.</footer>
       </div>
+  );
+}
+
+// ThirdwebProviderでラップするメインApp
+function App() {
+  return (
+    <ThirdwebProvider
+      activeChain="polygon"
+      clientId={process.env.REACT_APP_THIRDWEB_CLIENT_ID}
+      supportedWallets={[walletConnect()]}
+    >
+      <AppContent />
     </ThirdwebProvider>
   );
 }
