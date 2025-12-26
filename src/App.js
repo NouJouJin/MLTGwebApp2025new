@@ -220,43 +220,33 @@ const getAccount = async () => {
 //   );
 // };
 
+// タイムアウト付きのfetch関数（共通）
+const fetchWithTimeout = (url, options, timeout = 30000) => {
+  return Promise.race([
+    fetch(url, options),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Request timeout')), timeout)
+    )
+  ]);
+};
+
 // WalletConnect接続時のNFT取得関数（window.ethereumに依存しない）
 const fetchNFTsForWalletConnect = async (accountAddress, chainName, setNfts, setLoading = null, setError = null) => {
   try {
     if (setLoading) setLoading(true);
     if (setError) setError(null);
 
-    const web3ApiKey = process.env.REACT_APP_MORALIS_API_KEY;
-    const contractAddress = "0x30961b851A8A766014E53955694b3210718066e5";
-
-    const options = {
-      method: "GET",
-      headers: {
-        accept: "application/json",
-        "X-API-Key": web3ApiKey,
-      },
-    };
-
-    const fetchWithTimeout = (url, options, timeout = 30000) => {
-      return Promise.race([
-        fetch(url, options),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Request timeout')), timeout)
-        )
-      ]);
-    };
-
+    // APIプロキシ経由でNFTデータを取得（APIキーはサーバーサイドで管理）
     const resNftData = await fetchWithTimeout(
-      `https://deep-index.moralis.io/api/v2.2/${accountAddress}/nft?chain=${chainName}&token_addresses=${contractAddress}&limit=100`,
-      options
+      `/api/moralis-nfts?address=${accountAddress}&chain=${chainName}`,
+      { method: "GET" }
     );
 
     if (!resNftData.ok) {
-      throw new Error(`Moralis API Error: ${resNftData.status}`);
+      throw new Error(`API Error: ${resNftData.status}`);
     }
 
     const resNft = await resNftData.json();
-    console.log(JSON.stringify(resNft));
 
     let nfts = [];
 
@@ -264,27 +254,19 @@ const fetchNFTsForWalletConnect = async (accountAddress, chainName, setNfts, set
       try {
         const tmp = JSON.parse(nft.metadata);
         if (tmp !== null) {
-          const optionTokenInfo = {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${process.env.REACT_APP_AIRTABLE_API_KEY}`,
-            },
-          };
-
+          // APIプロキシ経由でAirtableからNFT情報を取得
           const resTokenInfo = await fetchWithTimeout(
-            `https://api.airtable.com/v0/appq0R9tJ2BkvKhRt/tblGeRuC0iRypjYfl?filterByFormula=AND(%7BContract_ID%7D%3D%22${nft.token_address}%22%2C%7BToken_ID%7D%3D${nft.token_id})`,
-            optionTokenInfo
+            `/api/airtable-nft-info?tokenAddress=${nft.token_address}&tokenId=${nft.token_id}`,
+            { method: "GET" }
           );
 
           if (!resTokenInfo.ok) {
-            console.warn(`Airtable API Error for token ${nft.token_id}: ${resTokenInfo.status}`);
             return null;
           }
 
           const resTokenInfoJson = await resTokenInfo.json();
 
           if (resTokenInfoJson.records[0] !== undefined) {
-            console.log(JSON.stringify(resTokenInfoJson.records[0]));
             return {
               contract_name: nft.name,
               image: tmp.image !== "" ? `https://ipfs.io/ipfs/${tmp.image.substring(7)}` : "",
@@ -298,7 +280,6 @@ const fetchNFTsForWalletConnect = async (accountAddress, chainName, setNfts, set
           }
         }
       } catch (error) {
-        console.warn(`Error processing NFT ${nft.token_id}:`, error);
         return null;
       }
       return null;
@@ -324,7 +305,7 @@ const fetchNFTsForWalletConnect = async (accountAddress, chainName, setNfts, set
     if (setError) {
       if (error.message && error.message.includes('Request timeout')) {
         setError('通信がタイムアウトしました。ネットワーク接続を確認してから再度お試しください。');
-      } else if (error.message && error.message.includes('Moralis API Error')) {
+      } else if (error.message && error.message.includes('API Error')) {
         setError('NFT情報の取得に失敗しました。しばらく待ってから再度お試しください。');
       } else {
         setError(error.message || '予期しないエラーが発生しました');
@@ -344,78 +325,45 @@ const handleAccountChanged = async (accountNo, setAccount, setChainId, setNfts, 
 
     const account = await getAccount();
     setAccount(account);
-    
+
     const chainId = await getChainID();
     setChainId(chainId);
-    
+
     const chainName = await getChainName(chainId);
     setChainName(chainName);
-    
-    console.log(process.env.WEB3_API_KEY);
-    const web3ApiKey = process.env.REACT_APP_MORALIS_API_KEY;
-    
-    // 特定のコントラクトアドレスのNFTのみを取得
-    const contractAddress = "0x30961b851A8A766014E53955694b3210718066e5";
-    
-    const options = {
-      method: "GET",
-      headers: {
-        accept: "application/json",
-        "X-API-Key": web3ApiKey,
-      },
-    };
-    
-    // タイムアウト付きのfetch（30秒）
-    const fetchWithTimeout = (url, options, timeout = 30000) => {
-      return Promise.race([
-        fetch(url, options),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Request timeout')), timeout)
-        )
-      ]);
-    };
-    
-    // コントラクトアドレスを指定してNFTを取得
+
+    // APIプロキシ経由でNFTデータを取得（APIキーはサーバーサイドで管理）
     const resNftData = await fetchWithTimeout(
-      `https://deep-index.moralis.io/api/v2.2/${account}/nft?chain=${chainName}&token_addresses=${contractAddress}&limit=100`, 
-      options
+      `/api/moralis-nfts?address=${account}&chain=${chainName}`,
+      { method: "GET" }
     );
-    
+
     if (!resNftData.ok) {
-      throw new Error(`Moralis API Error: ${resNftData.status}`);
+      throw new Error(`API Error: ${resNftData.status}`);
     }
-    
+
     const resNft = await resNftData.json();
-    console.log(JSON.stringify(resNft));
-    
+
     let nfts = [];
-    
+
     // NFTデータの並列処理でさらなる高速化
     const nftPromises = resNft.result.map(async (nft) => {
       try {
         const tmp = JSON.parse(nft.metadata);
         if (tmp !== null) {
-          const optionTokenInfo = {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${process.env.REACT_APP_AIRTABLE_API_KEY}`,
-            },
-          };
-          
+          // APIプロキシ経由でAirtableからNFT情報を取得
           const resTokenInfo = await fetchWithTimeout(
-            `https://api.airtable.com/v0/appq0R9tJ2BkvKhRt/tblGeRuC0iRypjYfl?filterByFormula=AND(%7BContract_ID%7D%3D%22${nft.token_address}%22%2C%7BToken_ID%7D%3D${nft.token_id})`,
-            optionTokenInfo
+            `/api/airtable-nft-info?tokenAddress=${nft.token_address}&tokenId=${nft.token_id}`,
+            { method: "GET" }
           );
-          
+
           if (!resTokenInfo.ok) {
-            console.warn(`Airtable API Error for token ${nft.token_id}: ${resTokenInfo.status}`);
             return null;
           }
-          
+
           const resTokenInfoJson = await resTokenInfo.json();
-          
+
           if (resTokenInfoJson.records[0] !== undefined) {
-            console.log(JSON.stringify(resTokenInfoJson.records[0]));
             return {
               contract_name: nft.name,
               image: tmp.image !== "" ? `https://ipfs.io/ipfs/${tmp.image.substring(7)}` : "",
@@ -429,16 +377,15 @@ const handleAccountChanged = async (accountNo, setAccount, setChainId, setNfts, 
           }
         }
       } catch (error) {
-        console.warn(`Error processing NFT ${nft.token_id}:`, error);
         return null;
       }
       return null;
     });
-    
+
     // 並列処理の結果を待機
     const nftResults = await Promise.all(nftPromises);
     nfts = nftResults.filter(nft => nft !== null);
-    
+
     // 発行日でソート
     setNfts(
       nfts.sort((a, b) => {
@@ -451,7 +398,7 @@ const handleAccountChanged = async (accountNo, setAccount, setChainId, setNfts, 
         return r;
       })
     );
-    
+
   } catch (error) {
     console.error("Error in handleAccountChanged:", error);
 
@@ -461,7 +408,7 @@ const handleAccountChanged = async (accountNo, setAccount, setChainId, setNfts, 
         setError('ウォレットが検出されませんでした。MetaMaskをインストールするか、「WalletConnectで接続」ボタンからスマートフォンのウォレットアプリで接続してください。');
       } else if (error.message && error.message.includes('Request timeout')) {
         setError('通信がタイムアウトしました。ネットワーク接続を確認してから再度お試しください。');
-      } else if (error.message && error.message.includes('Moralis API Error')) {
+      } else if (error.message && error.message.includes('API Error')) {
         setError('NFT情報の取得に失敗しました。しばらく待ってから再度お試しください。');
       } else if (error.message && error.message.includes("Cannot read properties of undefined")) {
         setError('ウォレットに接続できませんでした。「WalletConnectで接続」ボタンからスマートフォンのウォレットアプリで接続してください。');
@@ -506,16 +453,8 @@ const handleCollectonSelect = async (chainName, setSelectedCollection, setSelect
     }
   }
 
-  const web3ApiKey = process.env.REACT_APP_MORALIS_API_KEY;
-  const options = {
-    method: "GET",
-    headers: {
-      accept: "application/json",
-      "X-API-Key": web3ApiKey,
-    },
-  };
-
-  const resNftData = await fetch(`https://deep-index.moralis.io/api/v2.2/nft/${selectedCollection}?chain=${chainName}&format=decimal`, options); //v2.2に更新
+  // APIプロキシ経由でコレクションNFTを取得
+  const resNftData = await fetch(`/api/collection-nfts?collection=${selectedCollection}&chain=${chainName}`);
   const resNft = await resNftData.json();
   let nfts = [];
   for (let nft of resNft.result) {
@@ -601,73 +540,10 @@ const handleNewContract = async (account, chainName, setDisable, setCollections,
   document.getElementById("reloadContract").click();
 };
 
-//ミントした場合の機能（未使用）
-const handleMint = async (selectedCollection, chainName, setDisable, setMintedNfts, setShow) => {
-  setDisable(true);
-
-  let cn = chainName;
-  if (chainName === "eth") {
-    cn = "mainnet";
-  }
-
-  const account = await getAccount();
-  const issue_date = document.getElementById("issue_date").value.replace(/[^0-9]/g, "");
-  const owner = document.getElementById("owner").value;
-  const title = document.getElementById("exp_type").value;
-  const issuer_name = document.getElementById("issuer_name").value;
-  const exp_type = document.getElementById("exp_type").value;
-  const description = document.getElementById("description").value;
-
-  const provider = new ethers.providers.Web3Provider(window.ethereum);
-  await provider.send("eth_requestAccounts", []);
-  const signer = await provider.getSigner();
-
-  const sdk = ThirdwebSDK.fromSigner(signer, cn);
-  const contract = await sdk.getContract(selectedCollection);
-
-  const walletAddress = owner;
-  const metadata = {
-    name: title,
-    description: description,
-    image: document.getElementById("image").files[0],
-    attributes: [
-      { trait_type: "issue_date", value: issue_date },
-      { trait_type: "exp_type", value: exp_type },
-      { trait_type: "issuer_address", value: account },
-      { trait_type: "issuer_name", value: issuer_name },
-      { trait_type: "owner_address", value: owner },
-    ],
-  };
-  await contract.erc721.mintTo(walletAddress, metadata);
-
-  const url = "https://7iqg4cc3ca2nuy6oqrjchnuige0rqzcu.lambda-url.ap-northeast-1.on.aws/";
-  const method = "POST";
-  const submitBody = {
-    to: document.getElementById("email").value,
-    from: issuer_name,
-    chainName: cn,
-    title: title,
-    description: description,
-    owner_address: owner,
-  };
-  const body = JSON.stringify(submitBody);
-
-  fetch(url, { method, body })
-    .then((res) => {
-      console.log(res.status);
-      if (res.ok) {
-        return res.json().then((resJson) => {
-          setDisable(false);
-          setShow(false);
-
-          document.getElementById("reloadCollection").click();
-        });
-      }
-    })
-    .catch((error) => {
-      console.log(error);
-    });
-};
+// ミントした場合の機能（現在未使用 - 必要な場合は環境変数を設定して有効化）
+// const handleMint = async (selectedCollection, chainName, setDisable, setMintedNfts, setShow) => {
+//   // この機能を使用する場合は、別途APIエンドポイントを作成してください
+// };
 
 const handleLogout = async () => {
   window.location.href = "/";
@@ -758,12 +634,7 @@ const handleSubmit = async (account, nft, chainName, size, otherSize, handleClos
     // NFT転送の実行
     await contract.erc1155.transfer(walletAddress, tokenId, amount);
 
-    // Airtableへのデータ送信
-    const headers = {
-      Authorization: `Bearer ${process.env.REACT_APP_AIRTABLE_API_KEY}`,
-      "Content-Type": "application/json",
-    };
-    const method = "POST";
+    // APIプロキシ経由でAirtableへ注文データを送信
     const submitBody = {
       records: [
         {
@@ -783,9 +654,11 @@ const handleSubmit = async (account, nft, chainName, size, otherSize, handleClos
       ],
     };
 
-    const body = JSON.stringify(submitBody);
-    console.log(body);
-    const resTokenInfo = await fetch(`https://api.airtable.com/v0/appq0R9tJ2BkvKhRt/tbld2laNlKCi7B2GW`, { method, headers, body });
+    const resTokenInfo = await fetch(`/api/airtable-orders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(submitBody),
+    });
 
     // 成功時の処理
     // 転送したNFTをリストから削除
