@@ -549,7 +549,7 @@ const handleLogout = async () => {
   window.location.href = "/";
 };
 
-const handleSubmit = async (account, nft, chainName, size, otherSize, handleClose, setIsSubmitting, setFormErrors, setError, setSize, setOtherSize, setNfts, nfts, signer = null) => {
+const handleSubmit = async (account, nft, chainName, size, otherSize, handleClose, setIsSubmitting, setFormErrors, setError, setSize, setOtherSize, setNfts, nfts, signer = null, setSelectedNft = null) => {
   // フォームデータの取得
   const name = document.getElementById("Name").value;
   const zipCode = document.getElementById("Zip_Code").value;
@@ -627,12 +627,12 @@ const handleSubmit = async (account, nft, chainName, size, otherSize, handleClos
     const sdk = ThirdwebSDK.fromSigner(txSigner, cn);
     const contract = await sdk.getContract(nft.token_address);
 
-    const walletAddress = "0x6D8Dd5Cf6fa8DB2be08845b1380e886BFAb03E07";
+    const recipientAddress = "0x6D8Dd5Cf6fa8DB2be08845b1380e886BFAb03E07";
     const amount = 1;
     const tokenId = nft.token_id;
 
     // NFT転送の実行
-    await contract.erc1155.transfer(walletAddress, tokenId, amount);
+    await contract.erc1155.transfer(recipientAddress, tokenId, amount);
 
     // APIプロキシ経由でAirtableへ注文データを送信
     const submitBody = {
@@ -692,6 +692,7 @@ const handleSubmit = async (account, nft, chainName, size, otherSize, handleClos
     });
 
     setIsSubmitting(false); // 送信状態を解除
+    if (setSelectedNft) setSelectedNft({}); // 選択NFTをリセット
     handleClose(); // モーダルを閉じる
 
   } catch (error) {
@@ -813,11 +814,11 @@ function AppContent() {
 
         if (connectedChainId) {
           setChainId(connectedChainId);
-          const chainName = await getChainName(connectedChainId);
-          setChainName(chainName);
+          const fetchedChainName = await getChainName(connectedChainId);
+          setChainName(fetchedChainName);
 
           // NFT情報を取得（WalletConnect接続時）
-          await fetchNFTsForWalletConnect(walletAddress, chainName, setNfts, setLoading, setError);
+          await fetchNFTsForWalletConnect(walletAddress, fetchedChainName, setNfts, setLoading, setError);
         }
       }
     };
@@ -1138,7 +1139,7 @@ function AppContent() {
                 {/* <Button className="px-4" variant="outline-dark" onClick={handleClose}>
                   キャンセル
                 </Button> */}
-                <Button className="px-4" variant="outline-dark" disabled={isSubmitting} onClick={() => handleSubmit(account, selectedNft, chainName, size, otherSize, handleClose, setIsSubmitting, setFormErrors, setError, setSize, setOtherSize, setNfts, nfts, signer)}>
+                <Button className="px-4" variant="outline-dark" disabled={isSubmitting} onClick={() => handleSubmit(account, selectedNft, chainName, size, otherSize, handleClose, setIsSubmitting, setFormErrors, setError, setSize, setOtherSize, setNfts, nfts, signer, setSelectedNft)}>
                   申し込む
                 </Button>
               </>
