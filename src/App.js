@@ -12,17 +12,10 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import Container from "react-bootstrap/esm/Container";
 import Navbar from "react-bootstrap/esm/Navbar";
 import Nav from "react-bootstrap/esm/Nav";
-import Row from "react-bootstrap/esm/Row";
-import Col from "react-bootstrap/esm/Col";
-import Tab from "react-bootstrap/esm/Tab";
-import Tabs from "react-bootstrap/esm/Tabs";
 import Button from "react-bootstrap/esm/Button";
 import Table from "react-bootstrap/esm/Table";
-import Modal from "react-bootstrap/esm/Modal";
 import Form from "react-bootstrap/esm/Form";
 import Stack from "react-bootstrap/esm/Stack";
-import OverlayTrigger from "react-bootstrap/esm/OverlayTrigger";
-import Tooltip from "react-bootstrap/esm/Tooltip";
 import Alert from "react-bootstrap/esm/Alert";
 import Spinner from "react-bootstrap/esm/Spinner";
 
@@ -442,6 +435,7 @@ const getChainID = async () => {
 };
 
 //walletのNFTコレクションを取得する
+// eslint-disable-next-line no-unused-vars
 const handleCollectonSelect = async (chainName, setSelectedCollection, setSelectedCollectionName, setMintedNfts) => {
   let selectedCollection = "";
   let elements = document.getElementsByName("collections");
@@ -506,6 +500,7 @@ const handleCollectonSelect = async (chainName, setSelectedCollection, setSelect
   );
 };
 
+// eslint-disable-next-line no-unused-vars
 const handleNewContract = async (account, chainName, setDisable, setCollections, setShowNewToken) => {
   setDisable(true);
 
@@ -545,6 +540,7 @@ const handleNewContract = async (account, chainName, setDisable, setCollections,
 //   // この機能を使用する場合は、別途APIエンドポイントを作成してください
 // };
 
+// eslint-disable-next-line no-unused-vars
 const handleLogout = async () => {
   window.location.href = "/";
 };
@@ -654,7 +650,7 @@ const handleSubmit = async (account, nft, chainName, size, otherSize, handleClos
       ],
     };
 
-    const resTokenInfo = await fetch(`/api/airtable-orders`, {
+    await fetch(`/api/airtable-orders`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(submitBody),
@@ -724,21 +720,14 @@ function AppContent() {
   const signer = useSigner();
 
   const [account, setAccount] = useState("");
-  const [chainId, setChainId] = useState(0);
+  const [, setChainId] = useState(0);
   const [chainName, setChainName] = useState("");
-  // const [index, setIndex] = useState(0);
-  const [disable, setDisable] = useState(false);
-  const [show, setShow] = useState(false);
-  const [showNewToken, setShowNewToken] = useState(false);
-  const [showDetail, setShowDetail] = useState(false);
+  const [disable] = useState(false);
+  const [, setShow] = useState(false);
+  const [, setShowDetail] = useState(false);
   const [nfts, setNfts] = useState([]);
   const [selectedNft, setSelectedNft] = useState({});
-  const [collections, setCollections] = useState([]);
-  const [mintedNfts, setMintedNfts] = useState([]);
-  const [selectedCollection, setSelectedCollection] = useState("");
-  const [selectedCollectionName, setSelectedCollectionName] = useState("");
-  const [selectedGiftNft, setSelectedGiftNft] = useState("");
-  const location = window.location.pathname.toLowerCase();
+  const [, setCollections] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ローディング、エラー、フォームバリデーションの状態管理
@@ -751,10 +740,6 @@ function AppContent() {
     setShow(false);
     setIsSubmitting(false); // 送信状態を解除
   };
-  const handleShow = () => setShow(true);
-  const handleCloseNewToken = () => setShowNewToken(false);
-  const handleShowNewToken = () => setShowNewToken(true);
-  const handleCloseDetail = () => setShowDetail(false);
   const handleShowDetail = async (nft) => {
     setSelectedNft(nft);
     // ダイアログの内容をリセット
@@ -860,7 +845,7 @@ function AppContent() {
           <Navbar>
           <Container>
                 <Navbar.Brand href="#home">
-                  <img src={logo} width="250" />
+                  <img src={logo} width="250" alt="MetagriLabo" />
                 </Navbar.Brand>
                 <Navbar.Toggle />
                 <Navbar.Collapse className="justify-content-end">
