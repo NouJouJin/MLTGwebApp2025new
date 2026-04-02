@@ -37,16 +37,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid request body: fields is required' });
     }
 
-    const { Name, Zip_Code, Address, Tel, Mail } = record.fields;
+    const { Name, Zip_Code, Tel, Mail } = record.fields;
 
     // 基本的なバリデーション
     if (!Name || Name.trim().length < 2) {
       return res.status(400).json({ error: 'Name must be at least 2 characters' });
-    }
-
-    const zipRegex = /^\d{3}-\d{4}$/;
-    if (!zipRegex.test(Zip_Code)) {
-      return res.status(400).json({ error: 'Invalid zip code format (expected: 123-4567)' });
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -54,9 +49,19 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid email format' });
     }
 
-    const telRegex = /^0\d{1,4}-\d{1,4}-\d{4}$/;
-    if (!telRegex.test(Tel)) {
-      return res.status(400).json({ error: 'Invalid phone number format' });
+    // 住所系フィールドはイベントチケット申請では不要なため、存在する場合のみ検証
+    if (Zip_Code) {
+      const zipRegex = /^\d{3}-\d{4}$/;
+      if (!zipRegex.test(Zip_Code)) {
+        return res.status(400).json({ error: 'Invalid zip code format (expected: 123-4567)' });
+      }
+    }
+
+    if (Tel) {
+      const telRegex = /^0\d{1,4}-\d{1,4}-\d{4}$/;
+      if (!telRegex.test(Tel)) {
+        return res.status(400).json({ error: 'Invalid phone number format' });
+      }
     }
 
     const response = await fetch(

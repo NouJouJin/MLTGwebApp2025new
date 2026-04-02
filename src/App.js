@@ -545,7 +545,120 @@ const handleLogout = async () => {
   window.location.href = "/";
 };
 
+// イベントチケットNFTのkey
+const eventTicketKeys = ["recSuNlEXiAhHWJFA"];
+
 const handleSubmit = async (account, nft, chainName, size, otherSize, handleClose, setIsSubmitting, setFormErrors, setError, setSize, setOtherSize, setNfts, nfts, signer = null, setSelectedNft = null) => {
+  const isEventTicket = eventTicketKeys.includes(nft.key_id);
+
+  // ---- イベントチケット用フォーム ----
+  if (isEventTicket) {
+    const name = document.getElementById("Name").value;
+    const mail = document.getElementById("Mail").value;
+    const peatixUrl = document.getElementById("Peatix_URL").value;
+    const seminarName = document.getElementById("Seminar_Name").value;
+
+    const errors = {};
+    if (!name || name.trim().length < 2) errors.name = "名前は2文字以上で入力してください";
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(mail)) errors.email = "有効なメールアドレスを入力してください";
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      setError("入力内容にエラーがあります。修正してください。");
+      return;
+    }
+
+    setFormErrors({});
+    setError(null);
+
+    const confirmMessage = `
+  以下の情報で送信してもよろしいですか？
+
+  名前: ${name}
+  メール: ${mail}
+  セミナーURL: ${peatixUrl}
+  セミナー名: ${seminarName}`;
+
+    if (!window.confirm(confirmMessage)) {
+      handleClose();
+      setIsSubmitting(false);
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      let cn = chainName;
+      if (chainName === "eth") cn = "mainnet";
+
+      let txSigner;
+      if (signer) {
+        txSigner = signer;
+      } else if (window.ethereum) {
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        txSigner = await provider.getSigner();
+      } else {
+        throw new Error("ウォレットが接続されていません。MetaMaskまたはWalletConnectで接続してください。");
+      }
+
+      const sdk = ThirdwebSDK.fromSigner(txSigner, cn);
+      const contract = await sdk.getContract(nft.token_address);
+      const recipientAddress = "0x6D8Dd5Cf6fa8DB2be08845b1380e886BFAb03E07";
+      await contract.erc1155.transfer(recipientAddress, nft.token_id, 1);
+
+      const submitBody = {
+        records: [{
+          fields: {
+            Key_ID: nft.key_id,
+            Thanks_Gift: nft.present_detail,
+            Name: name,
+            Mail: mail,
+            Peatix_URL: peatixUrl,
+            Seminar_Name: seminarName,
+          },
+        }],
+      };
+
+      await fetch(`/api/airtable-orders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(submitBody),
+      });
+
+      const updatedNfts = nfts.filter(item =>
+        !(item.token_address === nft.token_address && item.token_id === nft.token_id)
+      );
+      setNfts(updatedNfts);
+
+      alert(`${nft.nft_name}の交換完了しました。到着するまでお楽しみに！`);
+
+      document.getElementById("Name").value = "";
+      document.getElementById("Mail").value = "";
+      document.getElementById("Peatix_URL").value = "";
+      document.getElementById("Seminar_Name").value = "";
+
+      document.querySelectorAll('input[type="radio"]').forEach((radio) => { radio.checked = false; });
+
+      setIsSubmitting(false);
+      if (setSelectedNft) setSelectedNft({});
+      handleClose();
+    } catch (error) {
+      console.error("Transfer error:", error);
+      if (error.code === 4001) {
+        setError("トランザクションがキャンセルされました");
+      } else if (error.message && error.message.includes("insufficient funds")) {
+        setError("ガス代が不足しています。ウォレットに十分なMATICがあることを確認してください");
+      } else {
+        setError("NFTの転送中にエラーが発生しました。しばらく待ってから再度お試しください。");
+      }
+      setIsSubmitting(false);
+    }
+    return;
+  }
+
+  // ---- 通常フォーム ----
   // フォームデータの取得
   const name = document.getElementById("Name").value;
   const zipCode = document.getElementById("Zip_Code").value;
@@ -964,6 +1077,49 @@ function AppContent() {
               </tbody>
             </Table>
             {/* 選択したNFTによって変わる */}
+            {/* イベントチケット */}
+            {selectedNft && eventTicketKeys.includes(selectedNft.key_id) && (
+              <Form>
+                <Form.Group className="mb-3">
+                  <Form.Label>お名前</Form.Label>
+                  <Form.Control
+                    id="Name"
+                    type="text"
+                    isInvalid={!!formErrors.name}
+                  />
+                  {formErrors.name && (
+                    <Form.Text className="text-danger">{formErrors.name}</Form.Text>
+                  )}
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>メールアドレス</Form.Label>
+                  <Form.Control
+                    id="Mail"
+                    type="email"
+                    placeholder="experience@metagri-labo.com"
+                    isInvalid={!!formErrors.email}
+                  />
+                  {formErrors.email && (
+                    <Form.Text className="text-danger">{formErrors.email}</Form.Text>
+                  )}
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>見たい過去のPeatixのセミナーURL</Form.Label>
+                  <Form.Control
+                    id="Peatix_URL"
+                    type="url"
+                    placeholder="https://peatix.com/event/..."
+                  />
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>セミナー名</Form.Label>
+                  <Form.Control
+                    id="Seminar_Name"
+                    type="text"
+                  />
+                </Form.Group>
+              </Form>
+            )}
             {/* オリジナルTシャツ	*/}
             {selectedNft && specificKeys.includes(selectedNft.key_id) && (
               <Form>
@@ -1057,7 +1213,7 @@ function AppContent() {
               </Form>
             )}
             {/* デフォルト */}
-            {selectedNft && !specificKeys.includes(selectedNft.key_id) && (
+            {selectedNft && !specificKeys.includes(selectedNft.key_id) && !eventTicketKeys.includes(selectedNft.key_id) && (
               <Form>
                 <Form.Group className="mb-3">
                   <Form.Label>お名前</Form.Label>
