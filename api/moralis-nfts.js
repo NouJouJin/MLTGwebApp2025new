@@ -33,33 +33,15 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
-  // 有効なコントラクトアドレスを日付範囲に基づいて収集
-  const contractAddresses = [];
-
-  const baseContract = process.env.NFT_CONTRACT_ADDRESS;
-  if (baseContract) contractAddresses.push(baseContract);
-
-  // 2026年〜2027年3月対象コントラクト
-  const contract2027 = process.env.NFT_CONTRACT_ADDRESS_2027;
-  if (contract2027) {
-    const now = new Date();
-    const start = new Date('2026-01-01');
-    const end = new Date('2027-04-01'); // 2027年3月末まで
-    if (now >= start && now < end) {
-      contractAddresses.push(contract2027);
-    }
-  }
-
-  if (contractAddresses.length === 0) {
+  const contractAddress = process.env.NFT_CONTRACT_ADDRESS;
+  if (!contractAddress) {
     console.error('NFT_CONTRACT_ADDRESS is not configured');
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
-  const tokenAddressParams = contractAddresses.map(addr => `token_addresses=${addr}`).join('&');
-
   try {
     const response = await fetch(
-      `https://deep-index.moralis.io/api/v2.2/${address}/nft?chain=${chain}&${tokenAddressParams}&limit=100`,
+      `https://deep-index.moralis.io/api/v2.2/${address}/nft?chain=${chain}&token_addresses=${contractAddress}&limit=100`,
       {
         method: 'GET',
         headers: {
