@@ -223,6 +223,59 @@ const fetchWithTimeout = (url, options, timeout = 30000) => {
   ]);
 };
 
+const parseNftMetadata = (metadata) => {
+  if (!metadata) return {};
+  if (typeof metadata === "object") return metadata || {};
+
+  try {
+    return JSON.parse(metadata) || {};
+  } catch (error) {
+    return {};
+  }
+};
+
+const toImageUrl = (image) => {
+  if (!image || typeof image !== "string") return "";
+  if (image.startsWith("ipfs://")) {
+    return `https://ipfs.io/ipfs/${image.substring(7)}`;
+  }
+  return image;
+};
+
+const buildRedeemableNft = async (nft) => {
+  try {
+    const metadata = parseNftMetadata(nft.metadata);
+
+    const resTokenInfo = await fetchWithTimeout(
+      `/api/airtable-nft-info?tokenAddress=${nft.token_address}&tokenId=${nft.token_id}`,
+      { method: "GET" }
+    );
+
+    if (!resTokenInfo.ok) {
+      return null;
+    }
+
+    const resTokenInfoJson = await resTokenInfo.json();
+    const airtableRecord = resTokenInfoJson.records[0];
+
+    if (airtableRecord !== undefined) {
+      return {
+        contract_name: nft.name,
+        image: toImageUrl(metadata.image),
+        nft_name: metadata.name || nft.name || `Token #${nft.token_id}`,
+        present_detail: airtableRecord.fields.Thanks_Gift,
+        token_address: nft.token_address,
+        token_id: nft.token_id,
+        amount: nft.amount,
+        key_id: airtableRecord.fields.Key_ID,
+      };
+    }
+  } catch (error) {
+    return null;
+  }
+  return null;
+};
+
 // WalletConnect接続時のNFT取得関数（window.ethereumに依存しない）
 const fetchNFTsForWalletConnect = async (accountAddress, chainName, setNfts, setLoading = null, setError = null) => {
   try {
@@ -243,40 +296,7 @@ const fetchNFTsForWalletConnect = async (accountAddress, chainName, setNfts, set
 
     let nfts = [];
 
-    const nftPromises = resNft.result.map(async (nft) => {
-      try {
-        const tmp = JSON.parse(nft.metadata);
-        if (tmp !== null) {
-          // APIプロキシ経由でAirtableからNFT情報を取得
-          const resTokenInfo = await fetchWithTimeout(
-            `/api/airtable-nft-info?tokenAddress=${nft.token_address}&tokenId=${nft.token_id}`,
-            { method: "GET" }
-          );
-
-          if (!resTokenInfo.ok) {
-            return null;
-          }
-
-          const resTokenInfoJson = await resTokenInfo.json();
-
-          if (resTokenInfoJson.records[0] !== undefined) {
-            return {
-              contract_name: nft.name,
-              image: tmp.image !== "" ? `https://ipfs.io/ipfs/${tmp.image.substring(7)}` : "",
-              nft_name: tmp.name,
-              present_detail: resTokenInfoJson.records[0].fields.Thanks_Gift,
-              token_address: nft.token_address,
-              token_id: nft.token_id,
-              amount: nft.amount,
-              key_id: resTokenInfoJson.records[0].fields.Key_ID,
-            };
-          }
-        }
-      } catch (error) {
-        return null;
-      }
-      return null;
-    });
+    const nftPromises = resNft.result.map(buildRedeemableNft);
 
     const nftResults = await Promise.all(nftPromises);
     nfts = nftResults.filter(nft => nft !== null);
@@ -340,40 +360,7 @@ const handleAccountChanged = async (accountNo, setAccount, setChainId, setNfts, 
     let nfts = [];
 
     // NFTデータの並列処理でさらなる高速化
-    const nftPromises = resNft.result.map(async (nft) => {
-      try {
-        const tmp = JSON.parse(nft.metadata);
-        if (tmp !== null) {
-          // APIプロキシ経由でAirtableからNFT情報を取得
-          const resTokenInfo = await fetchWithTimeout(
-            `/api/airtable-nft-info?tokenAddress=${nft.token_address}&tokenId=${nft.token_id}`,
-            { method: "GET" }
-          );
-
-          if (!resTokenInfo.ok) {
-            return null;
-          }
-
-          const resTokenInfoJson = await resTokenInfo.json();
-
-          if (resTokenInfoJson.records[0] !== undefined) {
-            return {
-              contract_name: nft.name,
-              image: tmp.image !== "" ? `https://ipfs.io/ipfs/${tmp.image.substring(7)}` : "",
-              nft_name: tmp.name,
-              present_detail: resTokenInfoJson.records[0].fields.Thanks_Gift,
-              token_address: nft.token_address,
-              token_id: nft.token_id,
-              amount: nft.amount,
-              key_id: resTokenInfoJson.records[0].fields.Key_ID,
-            };
-          }
-        }
-      } catch (error) {
-        return null;
-      }
-      return null;
-    });
+    const nftPromises = resNft.result.map(buildRedeemableNft);
 
     // 並列処理の結果を待機
     const nftResults = await Promise.all(nftPromises);
