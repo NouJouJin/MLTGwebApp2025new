@@ -29,6 +29,17 @@ const chainIdList = [
 ];
 
 const POLYGON_CHAIN_ID = 137;
+const POLYGON_CHAIN_PARAMS = {
+  chainId: "0x89",
+  chainName: "Polygon Mainnet",
+  nativeCurrency: {
+    name: "MATIC",
+    symbol: "MATIC",
+    decimals: 18
+  },
+  rpcUrls: ["https://polygon-rpc.com/"],
+  blockExplorerUrls: ["https://polygonscan.com/"]
+};
 
 const getChainInfo = (chainId) => {
   return chainIdList.find((item) => item.id === Number(chainId));
@@ -81,49 +92,74 @@ const ErrorNotification = ({ error, onClose }) => {
   );
 };
 
-// Polygon自動切り替え機能
-const switchToPolygon = async () => {
-  try {
-    // MetaMaskがインストールされているか確認
-    if (typeof window.ethereum === 'undefined') {
-      alert('ウォレットが検出されませんでした。MetaMaskをインストールするか、WalletConnectで接続してください。');
-      return;
-    }
+const getNetworkSwitchProvider = (signer = null) => {
+  if (typeof window !== "undefined" && window.ethereum?.request) {
+    return window.ethereum;
+  }
 
-    await window.ethereum.request({
+  const candidates = [
+    signer?.provider?.provider,
+    signer?.provider?.externalProvider,
+    signer?.provider
+  ];
+
+  const provider = candidates.find((candidate) => candidate?.request || candidate?.send);
+  if (!provider) return null;
+  if (provider.request) return provider;
+
+  return {
+    request: ({ method, params = [] }) => provider.send(method, params)
+  };
+};
+
+// Polygon自動切り替え機能
+const switchToPolygon = async (signer = null, setError = null) => {
+  const showMessage = (message) => {
+    if (setError) {
+      setError(message);
+    } else {
+      alert(message);
+    }
+  };
+
+  const requestProvider = getNetworkSwitchProvider(signer);
+  if (!requestProvider) {
+    showMessage("ウォレットにネットワーク切り替えを依頼できませんでした。MetaMaskアプリ側でPolygonに切り替えてから再接続してください。");
+    return false;
+  }
+
+  try {
+    await requestProvider.request({
       method: 'wallet_switchEthereumChain',
-      params: [{ chainId: '0x89' }], // Polygon Mainnet
+      params: [{ chainId: POLYGON_CHAIN_PARAMS.chainId }],
     });
+    if (setError) setError(null);
+    return true;
   } catch (error) {
+    const errorCode = error?.code || error?.data?.originalError?.code;
+
     // チェーンが追加されていない場合
-    if (error.code === 4902) {
+    if (errorCode === 4902) {
       try {
-        await window.ethereum.request({
+        await requestProvider.request({
           method: 'wallet_addEthereumChain',
-          params: [{
-            chainId: '0x89',
-            chainName: 'Polygon Mainnet',
-            nativeCurrency: {
-              name: 'MATIC',
-              symbol: 'MATIC',
-              decimals: 18
-            },
-            rpcUrls: ['https://polygon-rpc.com/'],
-            blockExplorerUrls: ['https://polygonscan.com/']
-          }],
+          params: [POLYGON_CHAIN_PARAMS],
         });
+        if (setError) setError(null);
+        return true;
       } catch (addError) {
         console.error(addError);
-        alert('Polygonネットワークの追加に失敗しました。');
+        showMessage('Polygonネットワークの追加に失敗しました。MetaMaskアプリ側でPolygonに切り替えてから再接続してください。');
       }
-    } else if (error.code === 4001) {
+    } else if (errorCode === 4001) {
       // ユーザーがキャンセルした場合
       console.log('ネットワーク切り替えがキャンセルされました');
     } else {
       console.error(error);
-      alert('ネットワークの切り替えに失敗しました。');
+      showMessage('ネットワークの切り替えに失敗しました。MetaMaskアプリ側でPolygonに切り替えてから再接続してください。');
     }
   }
+  return false;
 };
 
 const getAccount = async () => {
@@ -964,6 +1000,10 @@ function AppContent() {
     // MetaMaskがない場合は何もしない（WalletConnectで接続を推奨）
   }, [account]);
 
+  const handleSwitchToPolygon = async () => {
+    await switchToPolygon(signer, setError);
+  };
+
   return (
     <div className="App d-flex flex-column">
       <div className="mb-auto w-100">
@@ -1036,11 +1076,9 @@ function AppContent() {
                     AndroidのブラウザからWalletConnectでMetaMaskに接続している場合は、MetaMaskアプリ側でネットワークをPolygonに切り替えてから、WalletConnectを切断して再接続してください。
                   </small>
                 </p>
-                {typeof window !== 'undefined' && typeof window.ethereum !== 'undefined' && (
-                  <Button onClick={switchToPolygon} variant="primary">
-                    Polygonネットワークに切り替える
-                  </Button>
-                )}
+                <Button onClick={handleSwitchToPolygon} variant="primary">
+                  MetaMaskでPolygonに切り替える
+                </Button>
               </Alert>
             )}
 
@@ -1058,7 +1096,7 @@ function AppContent() {
                     </strong>
                   </small>
                 </p>
-                <Button onClick={switchToPolygon} variant="primary">
+                <Button onClick={handleSwitchToPolygon} variant="primary">
                   Polygonネットワークに切り替える
                 </Button>
               </Alert>
