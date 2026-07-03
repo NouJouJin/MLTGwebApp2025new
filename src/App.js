@@ -28,6 +28,17 @@ const chainIdList = [
   { id: 8453, name: "Base", hex: "0x2105" }, // 8453 in hex is 0x2105
 ];
 
+const POLYGON_CHAIN_ID = 137;
+
+const getChainInfo = (chainId) => {
+  return chainIdList.find((item) => item.id === Number(chainId));
+};
+
+const getChainDisplayName = (chainId) => {
+  const chainInfo = getChainInfo(chainId);
+  return chainInfo ? chainInfo.name : `chain ID ${chainId}`;
+};
+
 // 入力値検証関数
 const validateForm = (formData) => {
   const errors = {};
@@ -345,6 +356,11 @@ const handleAccountChanged = async (accountNo, setAccount, setChainId, setNfts, 
     const chainName = await getChainName(chainId);
     setChainName(chainName);
 
+    if (chainId !== POLYGON_CHAIN_ID) {
+      setNfts([]);
+      return;
+    }
+
     // APIプロキシ経由でNFTデータを取得（APIキーはサーバーサイドで管理）
     const resNftData = await fetchWithTimeout(
       `/api/moralis-nfts?address=${account}&chain=${chainName}`,
@@ -406,11 +422,8 @@ const handleAccountChanged = async (accountNo, setAccount, setChainId, setNfts, 
 };
 
 const getChainName = async (chainId) => {
-  let data = chainIdList.filter(function (item) {
-    return item.id === chainId;
-  });
-
-  return data[0].name;
+  const chainInfo = getChainInfo(chainId);
+  return chainInfo ? chainInfo.name : "";
 };
 
 const getChainID = async () => {
@@ -537,6 +550,11 @@ const eventTicketKeys = ["recSuNlEXiAhHWJFA"];
 
 const handleSubmit = async (account, nft, chainName, size, otherSize, handleClose, setIsSubmitting, setFormErrors, setError, setSize, setOtherSize, setNfts, nfts, signer = null, setSelectedNft = null) => {
   const isEventTicket = eventTicketKeys.includes(nft.key_id);
+
+  if (chainName !== "polygon") {
+    setError("MLTGの引き換えはPolygonネットワークのみ対応しています。MetaMaskアプリ側でネットワークをPolygonに切り替えてから、WalletConnectを再接続してください。");
+    return;
+  }
 
   // ---- イベントチケット用フォーム ----
   if (isEventTicket) {
@@ -820,7 +838,7 @@ function AppContent() {
   const signer = useSigner();
 
   const [account, setAccount] = useState("");
-  const [, setChainId] = useState(0);
+  const [chainId, setChainId] = useState(0);
   const [chainName, setChainName] = useState("");
   const [disable] = useState(false);
   const [, setShow] = useState(false);
@@ -898,9 +916,17 @@ function AppContent() {
         setAccount(walletAddress);
 
         if (connectedChainId) {
-          setChainId(connectedChainId);
-          const fetchedChainName = await getChainName(connectedChainId);
+          const currentChainId = Number(connectedChainId);
+          setChainId(currentChainId);
+          const fetchedChainName = await getChainName(currentChainId);
           setChainName(fetchedChainName);
+
+          if (currentChainId !== POLYGON_CHAIN_ID) {
+            setNfts([]);
+            setError(null);
+            setLoading(false);
+            return;
+          }
 
           // NFT情報を取得（WalletConnect接続時）
           await fetchNFTsForWalletConnect(walletAddress, fetchedChainName, setNfts, setLoading, setError);
@@ -1000,8 +1026,26 @@ function AppContent() {
               </div>
             )}
 
+            {/* Polygon以外のネットワークに接続している場合 */}
+            {!loading && !error && account && chainId !== 0 && chainId !== POLYGON_CHAIN_ID && (
+              <Alert variant="warning">
+                <p>接続中のネットワークは {getChainDisplayName(chainId)} です。</p>
+                <p>
+                  <small>
+                    MLTGの引き換えはPolygonネットワークのみ対応しています。
+                    AndroidのブラウザからWalletConnectでMetaMaskに接続している場合は、MetaMaskアプリ側でネットワークをPolygonに切り替えてから、WalletConnectを切断して再接続してください。
+                  </small>
+                </p>
+                {typeof window !== 'undefined' && typeof window.ethereum !== 'undefined' && (
+                  <Button onClick={switchToPolygon} variant="primary">
+                    Polygonネットワークに切り替える
+                  </Button>
+                )}
+              </Alert>
+            )}
+
             {/* NFTが0件の場合 */}
-            {!loading && !error && nfts.length === 0 && account && (
+            {!loading && !error && nfts.length === 0 && account && chainId === POLYGON_CHAIN_ID && (
               <Alert variant="info">
                 <p>MLTGが見つかりませんでした。</p>
                 <p>
