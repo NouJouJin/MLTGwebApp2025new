@@ -33,15 +33,51 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
-  const contractAddress = process.env.NFT_CONTRACT_ADDRESS;
-  if (!contractAddress) {
-    console.error('NFT_CONTRACT_ADDRESS is not configured');
+  // Support both a comma-separated variable and the existing Vercel variables.
+  const configuredContractAddresses = [
+    process.env.NFT_CONTRACT_ADDRESSES,
+    process.env.NFT_CONTRACT_ADDRESS,
+    process.env.NFT_CONTRACT_ADDRESS_2027,
+  ]
+    .filter(Boolean)
+    .flatMap((value) => value.split(','))
+    .map((contractAddress) => contractAddress.trim())
+    .filter(Boolean);
+
+  const seenContractAddresses = new Set();
+  const contractAddresses = configuredContractAddresses.filter((contractAddress) => {
+    const normalizedAddress = contractAddress.toLowerCase();
+    if (seenContractAddresses.has(normalizedAddress)) {
+      return false;
+    }
+    seenContractAddresses.add(normalizedAddress);
+    return true;
+  });
+
+  if (contractAddresses.length === 0) {
+    console.error('NFT contract addresses are not configured');
+    return res.status(500).json({ error: 'Server configuration error' });
+  }
+
+  if (
+    contractAddresses.length > 10 ||
+    contractAddresses.some((contractAddress) => !addressRegex.test(contractAddress))
+  ) {
+    console.error('NFT contract address configuration is invalid');
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
   try {
+    const params = new URLSearchParams({
+      chain,
+      limit: '100',
+    });
+    contractAddresses.forEach((contractAddress) => {
+      params.append('token_addresses', contractAddress);
+    });
+
     const response = await fetch(
-      `https://deep-index.moralis.io/api/v2.2/${address}/nft?chain=${chain}&token_addresses=${contractAddress}&limit=100`,
+      `https://deep-index.moralis.io/api/v2.2/${address}/nft?${params.toString()}`,
       {
         method: 'GET',
         headers: {

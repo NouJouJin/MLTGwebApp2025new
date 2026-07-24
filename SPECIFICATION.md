@@ -203,7 +203,8 @@ src/
 
 **対象コントラクト**:
 ```
-環境変数 NFT_CONTRACT_ADDRESS で設定
+環境変数 `NFT_CONTRACT_ADDRESSES`（カンマ区切り）、または
+`NFT_CONTRACT_ADDRESS` と `NFT_CONTRACT_ADDRESS_2027` で設定
 ```
 
 **データ構造**:
@@ -433,7 +434,7 @@ GET /{address}/nft
 
 Query Parameters:
 - chain: string (例: "polygon")
-- token_addresses: string (コントラクトアドレス)
+- token_addresses: string[] (コントラクトアドレス、最大10件)
 - limit: number (最大100)
 
 Headers:
