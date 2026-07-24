@@ -289,6 +289,11 @@ const toImageUrl = (image) => {
   return image;
 };
 
+const CONTRACT_DISPLAY_NAMES = {
+  "0x5ecbe52f8c34888e54393b3a83cc7a838fe0d417":
+    "MetagriLabo Thanks Gift Farming 2026",
+};
+
 const buildRedeemableNft = async (nft) => {
   try {
     const metadata = parseNftMetadata(nft.metadata);
@@ -307,7 +312,10 @@ const buildRedeemableNft = async (nft) => {
 
     if (airtableRecord !== undefined) {
       return {
-        contract_name: nft.name,
+        contract_name:
+          CONTRACT_DISPLAY_NAMES[nft.token_address?.toLowerCase()] ||
+          nft.name ||
+          "",
         image: toImageUrl(metadata.image),
         nft_name: metadata.name || nft.name || `Token #${nft.token_id}`,
         present_detail: airtableRecord.fields.Thanks_Gift,
