@@ -297,6 +297,9 @@ const CONTRACT_DISPLAY_NAMES = {
 const ERC1155_TRANSFER_ABI = [
   "function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes data)",
 ];
+const ERC1155_TRANSFER_INTERFACE = new ethers.utils.Interface(
+  ERC1155_TRANSFER_ABI
+);
 
 const transferErc1155 = async (
   txSigner,
@@ -305,20 +308,66 @@ const transferErc1155 = async (
   tokenId,
   amount = 1
 ) => {
-  const senderAddress = await txSigner.getAddress();
-  const contract = new ethers.Contract(
-    tokenAddress,
-    ERC1155_TRANSFER_ABI,
-    txSigner
+  const senderAddress = ethers.utils.getAddress(await txSigner.getAddress());
+  const contractAddress = ethers.utils.getAddress(tokenAddress);
+  const transferData = ERC1155_TRANSFER_INTERFACE.encodeFunctionData(
+    "safeTransferFrom",
+    [
+      senderAddress,
+      ethers.utils.getAddress(recipientAddress),
+      String(tokenId),
+      String(amount),
+      "0x",
+    ]
   );
-  const transaction = await contract.safeTransferFrom(
-    senderAddress,
-    recipientAddress,
-    tokenId,
-    amount,
-    "0x"
-  );
-  await transaction.wait();
+
+  const transactionRequest = {
+    to: contractAddress,
+    data: transferData,
+    value: ethers.constants.Zero,
+  };
+  const estimatedGas = await txSigner.estimateGas(transactionRequest);
+  const gasLimit = estimatedGas.mul(120).div(100);
+
+  const externalProvider =
+    txSigner.provider?.provider ||
+    txSigner.provider?.externalProvider ||
+    null;
+
+  if (externalProvider?.isMetaMask && externalProvider.request) {
+    const transactionHash = await externalProvider.request({
+      method: "eth_sendTransaction",
+      params: [
+        {
+          from: String(senderAddress),
+          to: String(contractAddress),
+          data: String(transferData),
+          value: "0x0",
+          gas: ethers.utils.hexValue(gasLimit),
+        },
+      ],
+    });
+
+    if (typeof transactionHash !== "string") {
+      throw new Error("MetaMaskから有効なトランザクションハッシュが返されませんでした");
+    }
+
+    const provider = new ethers.providers.Web3Provider(externalProvider);
+    const receipt = await provider.waitForTransaction(transactionHash, 1);
+    if (!receipt || receipt.status !== 1) {
+      throw new Error("NFTの転送トランザクションが失敗しました");
+    }
+    return;
+  }
+
+  const transaction = await txSigner.sendTransaction({
+    ...transactionRequest,
+    gasLimit,
+  });
+  const receipt = await transaction.wait();
+  if (!receipt || receipt.status !== 1) {
+    throw new Error("NFTの転送トランザクションが失敗しました");
+  }
 };
 
 const buildRedeemableNft = async (nft) => {
@@ -1031,7 +1080,7 @@ function AppContent() {
       };
     }
     // MetaMaskがない場合は何もしない（WalletConnectで接続を推奨）
-  }, [account]);
+  }, []);
 
   const handleSwitchToPolygon = async () => {
     await switchToPolygon(signer, setError);
