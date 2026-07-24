@@ -294,8 +294,10 @@ const CONTRACT_DISPLAY_NAMES = {
     "MetagriLabo Thanks Gift Farming 2026",
 };
 
+// Use the standard batch function with one item. MetaMask 13.40.0 crashes in
+// its single-NFT confirmation UI when cached NFT image data is not a string.
 const ERC1155_TRANSFER_ABI = [
-  "function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes data)",
+  "function safeBatchTransferFrom(address from, address to, uint256[] ids, uint256[] amounts, bytes data)",
 ];
 const ERC1155_TRANSFER_INTERFACE = new ethers.utils.Interface(
   ERC1155_TRANSFER_ABI
@@ -311,12 +313,12 @@ const transferErc1155 = async (
   const senderAddress = ethers.utils.getAddress(await txSigner.getAddress());
   const contractAddress = ethers.utils.getAddress(tokenAddress);
   const transferData = ERC1155_TRANSFER_INTERFACE.encodeFunctionData(
-    "safeTransferFrom",
+    "safeBatchTransferFrom",
     [
       senderAddress,
       ethers.utils.getAddress(recipientAddress),
-      String(tokenId),
-      String(amount),
+      [String(tokenId)],
+      [String(amount)],
       "0x",
     ]
   );
