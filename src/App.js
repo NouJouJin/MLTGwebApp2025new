@@ -294,6 +294,33 @@ const CONTRACT_DISPLAY_NAMES = {
     "MetagriLabo Thanks Gift Farming 2026",
 };
 
+const ERC1155_TRANSFER_ABI = [
+  "function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes data)",
+];
+
+const transferErc1155 = async (
+  txSigner,
+  tokenAddress,
+  recipientAddress,
+  tokenId,
+  amount = 1
+) => {
+  const senderAddress = await txSigner.getAddress();
+  const contract = new ethers.Contract(
+    tokenAddress,
+    ERC1155_TRANSFER_ABI,
+    txSigner
+  );
+  const transaction = await contract.safeTransferFrom(
+    senderAddress,
+    recipientAddress,
+    tokenId,
+    amount,
+    "0x"
+  );
+  await transaction.wait();
+};
+
 const buildRedeemableNft = async (nft) => {
   try {
     const metadata = parseNftMetadata(nft.metadata);
@@ -638,9 +665,6 @@ const handleSubmit = async (account, nft, chainName, size, otherSize, handleClos
     setIsSubmitting(true);
 
     try {
-      let cn = chainName;
-      if (chainName === "eth") cn = "mainnet";
-
       let txSigner;
       if (signer) {
         txSigner = signer;
@@ -652,10 +676,13 @@ const handleSubmit = async (account, nft, chainName, size, otherSize, handleClos
         throw new Error("ウォレットが接続されていません。MetaMaskまたはWalletConnectで接続してください。");
       }
 
-      const sdk = ThirdwebSDK.fromSigner(txSigner, cn);
-      const contract = await sdk.getContract(nft.token_address);
       const recipientAddress = "0x6D8Dd5Cf6fa8DB2be08845b1380e886BFAb03E07";
-      await contract.erc1155.transfer(recipientAddress, nft.token_id, 1);
+      await transferErc1155(
+        txSigner,
+        nft.token_address,
+        recipientAddress,
+        nft.token_id
+      );
 
       const submitBody = {
         records: [{
@@ -763,11 +790,6 @@ const handleSubmit = async (account, nft, chainName, size, otherSize, handleClos
   setIsSubmitting(true); // 送信状態を開始
 
   try {
-    let cn = chainName;
-    if (chainName === "eth") {
-      cn = "mainnet";
-    }
-
     // Signerの取得（MetaMaskとWalletConnectの両方に対応）
     let txSigner;
     if (signer) {
@@ -782,15 +804,18 @@ const handleSubmit = async (account, nft, chainName, size, otherSize, handleClos
       throw new Error("ウォレットが接続されていません。MetaMaskまたはWalletConnectで接続してください。");
     }
 
-    const sdk = ThirdwebSDK.fromSigner(txSigner, cn);
-    const contract = await sdk.getContract(nft.token_address);
-
     const recipientAddress = "0x6D8Dd5Cf6fa8DB2be08845b1380e886BFAb03E07";
     const amount = 1;
     const tokenId = nft.token_id;
 
     // NFT転送の実行
-    await contract.erc1155.transfer(recipientAddress, tokenId, amount);
+    await transferErc1155(
+      txSigner,
+      nft.token_address,
+      recipientAddress,
+      tokenId,
+      amount
+    );
 
     // APIプロキシ経由でAirtableへ注文データを送信
     const submitBody = {
