@@ -1,4 +1,11 @@
-import { ThirdwebProvider, walletConnect, useAddress, useChainId, useSigner } from "@thirdweb-dev/react";
+import {
+  ThirdwebProvider,
+  metamaskWallet,
+  walletConnect,
+  useAddress,
+  useChainId,
+  useSigner,
+} from "@thirdweb-dev/react";
 import { ConnectWallet } from "@thirdweb-dev/react"; // ConnectWallet コンポーネントもインポート
 import { ThirdwebSDK } from "@thirdweb-dev/sdk";
 import { ethers } from "ethers";
@@ -293,6 +300,19 @@ const CONTRACT_DISPLAY_NAMES = {
   "0x5ecbe52f8c34888e54393b3a83cc7a838fe0d417":
     "MetagriLabo Thanks Gift Farming 2026",
 };
+
+const walletConnectProjectId =
+  process.env.REACT_APP_WALLETCONNECT_PROJECT_ID;
+const walletConnectOptions = walletConnectProjectId
+  ? { projectId: walletConnectProjectId }
+  : {};
+const SUPPORTED_WALLETS = [
+  metamaskWallet({
+    ...walletConnectOptions,
+    recommended: true,
+  }),
+  walletConnect(walletConnectOptions),
+];
 
 // Use the standard batch function with one item. MetaMask 13.40.0 crashes in
 // its single-NFT confirmation UI when cached NFT image data is not a string.
@@ -1106,8 +1126,12 @@ function AppContent() {
                         MetaMaskに接続
                       </Button>
                     )}
-                    {/* WalletConnect 接続ボタン */}
-                    <ConnectWallet btnTitle="WalletConnectで接続" />
+                    {/* スマホのMetaMaskディープリンクとWalletConnectに対応 */}
+                    <ConnectWallet
+                      btnTitle="ウォレットに接続"
+                      modalTitle="ウォレットを選択"
+                      switchToActiveChain
+                    />
                   </Navbar.Text>
                 </Navbar.Collapse>
               </Container>
@@ -1462,7 +1486,7 @@ function App() {
     <ThirdwebProvider
       activeChain="polygon"
       clientId={process.env.REACT_APP_THIRDWEB_CLIENT_ID}
-      supportedWallets={[walletConnect()]}
+      supportedWallets={SUPPORTED_WALLETS}
     >
       <AppContent />
     </ThirdwebProvider>
