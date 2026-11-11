@@ -29,7 +29,7 @@ NFTを実物商品と交換できるWeb3アプリケーション。ユーザー�
 
 ### 🔐 ウォレット接続
 - **MetaMask統合** - 安全なウォレット接続
-- **WalletConnect対応** - モバイルウォレット対応
+- **WalletConnect対応** - Reown Project IDを使用したモバイルウォレット接続
 - **マルチチェーン** - Polygon, Ethereum, Base等に対応
 
 ### 🖼️ NFT管理
@@ -93,6 +93,7 @@ NFTを実物商品と交換できるWeb3アプリケーション。ユーザー�
 - Moralis API Key
 - Airtable Personal Access Token
 - ThirdWeb Client ID
+- Reown Project ID（WalletConnect）
 
 ### インストール
 
@@ -127,9 +128,12 @@ NFT_CONTRACT_ADDRESS_2027=0x5ecbE52F8c34888e54393b3A83cc7a838Fe0D417
 **クライアントサイド環境変数**:
 ```bash
 REACT_APP_THIRDWEB_CLIENT_ID=your_thirdweb_client_id
+REACT_APP_WALLETCONNECT_PROJECT_ID=your_walletconnect_project_id
 ```
 
-> **セキュリティ**: APIキーはサーバーサイドのみで使用され、ブラウザには露出しません。
+WalletConnectのProject IDは [Reown Dashboard](https://dashboard.reown.com/) で発行します。Reown側のAllowlistには、本番ドメインと使用するVercel Previewドメインを登録してください。
+
+> **セキュリティ**: APIキーはサーバーサイドのみで使用され、ブラウザには露出しません。`REACT_APP_` で始まる値はブラウザへ公開されるため、秘密情報を設定しないでください。
 
 詳細なセットアップ手順は [SETUP_GUIDE.md](SETUP_GUIDE.md) を参照してください。
 
@@ -179,6 +183,7 @@ npm run lint:fix
 |--------|------|---------|
 | `REACT_APP_MORALIS_API_KEY` | NFTデータ取得用API Key | [Moralis](https://moralis.io/) でアカウント作成 |
 | `REACT_APP_THIRDWEB_CLIENT_ID` | スマートコントラクト操作用Client ID | [ThirdWeb](https://thirdweb.com/) でアカウント作成 |
+| `REACT_APP_WALLETCONNECT_PROJECT_ID` | スマホ・QRウォレット接続用Project ID | [Reown Dashboard](https://dashboard.reown.com/) でプロジェクト作成 |
 | `REACT_APP_AIRTABLE_API_KEY` | 注文データ保存用API Key | [Airtable](https://airtable.com/create/tokens) でトークン作成 |
 
 ### セキュリティ重要事項
@@ -194,9 +199,9 @@ npm run lint:fix
 
 ### 1. ウォレット接続
 
-1. MetaMaskブラウザ拡張機能をインストール
-2. ページ上部の「MetaMaskに接続」ボタンをクリック
-3. MetaMaskで接続を承認
+1. ページ上部の「ウォレットに接続」ボタンをクリック
+2. 接続するウォレットを選択
+3. デスクトップではMetaMask拡張機能、スマホではMetaMaskアプリまたはWalletConnectで接続を承認
 
 ### 2. NFT確認
 
@@ -234,23 +239,15 @@ npm run lint:fix
 
 ## 🌐 デプロイ
 
-### AWSへのデプロイ
-
 ### 環境変数の設定（本番環境）
 
-本番環境では、以下のいずれかの方法で環境変数を設定：
+Vercelの対象プロジェクトで `Settings` → `Environment Variables` を開き、次の値をProductionに設定します。Preview環境でも確認する場合はPreviewにも設定してください。
 
-1. **ビルド時注入**（簡単）
-   ```bash
-   # .env.production を作成
-   cp .env .env.production
-   # API Keyを本番用に変更
-   npm run build
-   ```
+```bash
+REACT_APP_WALLETCONNECT_PROJECT_ID=your_walletconnect_project_id
+```
 
-2. **Firebase Functions経由**（推奨）
-   - セキュアな環境変数管理
-   - クライアントにAPI Keyを露出しない
+環境変数はビルド時に埋め込まれるため、追加・変更後は必ず再デプロイしてください。また、[Reown Dashboard](https://dashboard.reown.com/) のAllowlistには、実際に利用する本番・Previewドメインを登録します。
 
 詳細は [SPECIFICATION.md](SPECIFICATION.md#デプロイメント) を参照。
 

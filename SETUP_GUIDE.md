@@ -229,7 +229,24 @@ yarn install
 
 ---
 
-### 3. Airtable API Key
+### 3. Reown Project ID（WalletConnect）
+
+**用途**: スマホのMetaMaskアプリおよびWalletConnectによる接続
+
+**取得・設定手順**:
+
+1. [Reown Dashboard](https://dashboard.reown.com/)にアクセス
+2. アプリ用プロジェクトを作成
+3. 発行されたProject IDをコピー
+4. Reown側のAllowlistに本番ドメインと使用するVercel Previewドメインを登録
+5. Vercelの `Settings` → `Environment Variables` に `REACT_APP_WALLETCONNECT_PROJECT_ID` として登録
+6. 環境変数の設定後に再デプロイ
+
+Project IDの実値はREADMEやGit管理対象ファイルへ記載しないでください。
+
+---
+
+### 4. Airtable API Key
 
 **用途**: 注文データの保存
 
@@ -294,6 +311,9 @@ REACT_APP_MORALIS_API_KEY=ここにMoralisのAPI Keyを貼り付け
 # ThirdWeb Client ID
 REACT_APP_THIRDWEB_CLIENT_ID=ここにThirdWebのClient IDを貼り付け
 
+# Reown Project ID（WalletConnect）
+REACT_APP_WALLETCONNECT_PROJECT_ID=ここにReownのProject IDを貼り付け
+
 # Airtable API Key
 REACT_APP_AIRTABLE_API_KEY=ここにAirtableのAPI Keyを貼り付け
 ```
@@ -303,6 +323,7 @@ REACT_APP_AIRTABLE_API_KEY=ここにAirtableのAPI Keyを貼り付け
 GENERATE_SOURCEMAP=false
 REACT_APP_MORALIS_API_KEY=your_moralis_api_key_here
 REACT_APP_THIRDWEB_CLIENT_ID=your_thirdweb_client_id_here
+REACT_APP_WALLETCONNECT_PROJECT_ID=your_walletconnect_project_id_here
 REACT_APP_AIRTABLE_API_KEY=your_airtable_api_key_here
 ```
 
@@ -368,15 +389,17 @@ webpack compiled successfully
 
 ## 動作確認
 
-### 1. MetaMask 接続テスト
+### 1. ウォレット接続テスト
 
-1. ページ上部の「MetaMaskに接続」ボタンをクリック
+1. ページ上部の「ウォレットに接続」ボタンをクリック
 
-2. MetaMaskポップアップが表示される
+2. デスクトップではMetaMask拡張機能、スマホではMetaMaskアプリを選択
 
-3. 「次へ」→「接続」をクリック
+3. 接続要求を承認
 
 4. 接続成功を確認
+
+5. スマホ確認では、外部ブラウザからMetaMaskアプリが起動することを確認
 
 ---
 
@@ -507,7 +530,8 @@ kill -9 <PID>
 ### 問題4: MetaMask が接続できない
 
 **症状**:
-- 「MetaMaskに接続」ボタンを押しても反応がない
+- 「ウォレットに接続」ボタンを押しても反応がない
+- スマホでMetaMaskアプリが開かない、または接続要求が表示されない
 - `window.ethereum is undefined` エラー
 
 **解決方法**:
@@ -519,6 +543,10 @@ kill -9 <PID>
 3. MetaMaskがロックされている場合はアンロック
 
 4. ページをリロード
+
+5. Vercelに `REACT_APP_WALLETCONNECT_PROJECT_ID` が設定され、設定後に再デプロイされているか確認
+
+6. Reown DashboardのAllowlistに現在の本番・Previewドメインが登録されているか確認
 
 ---
 

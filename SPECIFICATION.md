@@ -164,6 +164,23 @@ src/
 - `accountsChanged`: アカウント変更時
 - `chainChanged`: ネットワーク変更時
 
+#### スマホ・WalletConnect接続
+
+- ThirdWebの `metamaskWallet()` と `walletConnect()` を接続候補として登録
+- スマホの通常ブラウザからMetaMaskアプリへのディープリンクに対応
+- WalletConnect v2の接続にはReown Dashboardで発行したProject IDを使用
+- 接続時にPolygon Mainnetへの切り替えを要求
+
+**外部設定**:
+
+| 項目 | 設定 |
+|------|------|
+| Project ID発行元 | [Reown Dashboard](https://dashboard.reown.com/) |
+| 環境変数 | `REACT_APP_WALLETCONNECT_PROJECT_ID` |
+| Allowlist | 本番ドメインおよび使用するVercel Previewドメイン |
+
+Project IDはクライアントへ公開される識別子であり、アクセス元の制限はReown側のAllowlistで行う。
+
 #### Polygon自動切り替え
 
 **関数**: `switchToPolygon()`
@@ -394,6 +411,7 @@ sequenceDiagram
 GENERATE_SOURCEMAP=false
 REACT_APP_MORALIS_API_KEY=your_moralis_api_key_here
 REACT_APP_THIRDWEB_CLIENT_ID=your_thirdweb_client_id_here
+REACT_APP_WALLETCONNECT_PROJECT_ID=your_walletconnect_project_id_here
 REACT_APP_AIRTABLE_API_KEY=your_airtable_api_key_here
 ```
 
@@ -413,6 +431,7 @@ REACT_APP_AIRTABLE_API_KEY=your_airtable_api_key_here
    - ユーザーの秘密鍵は保存しない
    - トランザクション内容を明確に表示
    - 署名要求前に確認ダイアログ
+   - Reown DashboardのAllowlistに利用ドメインのみを登録
 
 4. **推奨される追加対策**
    - Content Security Policy (CSP) ヘッダー
@@ -630,6 +649,19 @@ const [isSubmitting, setIsSubmitting] = useState(false); // 送信中
 
 ## デプロイメント
 
+### Vercel
+
+#### WalletConnect環境変数
+
+1. [Reown Dashboard](https://dashboard.reown.com/) でアプリ用プロジェクトを作成
+2. 発行されたProject IDをVercelの `Settings` → `Environment Variables` に登録
+3. 変数名は `REACT_APP_WALLETCONNECT_PROJECT_ID`
+4. Productionと、必要に応じてPreviewへ適用
+5. Reown側のAllowlistへ利用する本番・Previewドメインを登録
+6. 環境変数の変更後にVercelを再デプロイ
+
+Project IDの実値はリポジトリへ記載しない。
+
 ### Firebase Hosting
 
 #### 初回セットアップ
@@ -691,6 +723,9 @@ exports.config = functions.https.onRequest((req, res) => {
 
 - [ ] `.env` ファイルが `.gitignore` に含まれている
 - [ ] 本番用API Keyを設定
+- [ ] Vercelに `REACT_APP_WALLETCONNECT_PROJECT_ID` を設定
+- [ ] Reown Allowlistに本番・Previewドメインを設定
+- [ ] 環境変数設定後に再デプロイ
 - [ ] ビルドエラーがない
 - [ ] テストが全て通過
 - [ ] セキュリティヘッダー設定確認
@@ -749,6 +784,8 @@ npm start
 
 - [React公式ドキュメント](https://react.dev/)
 - [ThirdWeb公式ドキュメント](https://portal.thirdweb.com/)
+- [Reown Dashboard](https://dashboard.reown.com/)
+- [Reown公式ドキュメント](https://docs.reown.com/)
 - [Moralis API リファレンス](https://docs.moralis.io/)
 - [Airtable API リファレンス](https://airtable.com/developers/web/api/introduction)
 - [Firebase Hosting ガイド](https://firebase.google.com/docs/hosting)
@@ -771,6 +808,7 @@ npm start
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|---------|--------|
+| 1.2.0 | 2026-07-28 | Reown Project ID、WalletConnectモバイル接続、Allowlist設定を追記 | Codex |
 | 1.1.0 | 2025-10-30 | フォームバリデーション、エラーハンドリング、UX改善追加 | Claude Code |
 | 1.0.0 | 2025-01-03 | 初版作成 | - |
 
