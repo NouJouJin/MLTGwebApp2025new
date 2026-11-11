@@ -1,5 +1,8 @@
-// Vercel Serverless Function: Moralis NFT API Proxy
+// Vercel Serverless Function: NFT API Proxy（旧 Moralis → 2026-11 Alchemy に切り替え）
 // APIキーをサーバーサイドで管理し、クライアントに露出させない
+// エンドポイント名とレスポンス形式（Moralis形式 { result: [...] }）はフロント互換のため据え置き
+
+import { getAlchemyApiKey, getAlchemyNetwork, getAlchemyRpcUrl, getNftsForOwner } from './_alchemy.js';
 
 const FARMING_2026_CONTRACT_ADDRESS =
   '0x5ecbe52f8c34888e54393b3a83cc7a838fe0d417';
@@ -49,6 +52,7 @@ const fetchOnChainTokenUri = async (tokenAddress, tokenId) => {
     process.env.THIRDWEB_CLIENT_ID || process.env.REACT_APP_THIRDWEB_CLIENT_ID;
   const polygonRpcUrl =
     process.env.POLYGON_RPC_URL ||
+    getAlchemyRpcUrl('polygon') ||
     (thirdwebClientId
       ? `https://137.rpc.thirdweb.com/${encodeURIComponent(thirdwebClientId)}`
       : '');
@@ -179,9 +183,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid address format' });
   }
 
-  const apiKey = process.env.MORALIS_API_KEY;
-  if (!apiKey) {
-    console.error('MORALIS_API_KEY is not configured');
+  const alchemyApiKey = getAlchemyApiKey();
+  const moralisApiKey = process.env.MORALIS_API_KEY;
+  if (!alchemyApiKey && !moralisApiKey) {
+    console.error('ALCHEMY_API_KEY is not configured');
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
@@ -220,37 +225,57 @@ export default async function handler(req, res) {
   }
 
   try {
-    const params = new URLSearchParams({
-      chain,
-      limit: '100',
-    });
-    contractAddresses.forEach((contractAddress) => {
-      params.append('token_addresses', contractAddress);
-    });
+    let data;
 
-    const response = await fetch(
-      `https://deep-index.moralis.io/api/v2.2/${address}/nft?${params.toString()}`,
-      {
-        method: 'GET',
-        headers: {
-          'accept': 'application/json',
-          'X-API-Key': apiKey,
-        },
+    if (alchemyApiKey) {
+      const network = getAlchemyNetwork(chain);
+      if (!network) {
+        return res.status(400).json({ error: 'Unsupported chain' });
       }
-    );
+      const result = await getNftsForOwner({
+        owner: address,
+        network,
+        contractAddresses,
+      });
+      data = { result };
+    } else {
+      // 旧経路（Moralis）。ALCHEMY_API_KEY 未設定時のみ使用
+      const params = new URLSearchParams({
+        chain,
+        limit: '100',
+      });
+      contractAddresses.forEach((contractAddress) => {
+        params.append('token_addresses', contractAddress);
+      });
 
-    if (!response.ok) {
-      console.error(`Moralis API error: ${response.status}`);
-      return res.status(response.status).json({ error: 'Failed to fetch NFT data' });
+      const response = await fetch(
+        `https://deep-index.moralis.io/api/v2.2/${address}/nft?${params.toString()}`,
+        {
+          method: 'GET',
+          headers: {
+            'accept': 'application/json',
+            'X-API-Key': moralisApiKey,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        console.error(`Moralis API error: ${response.status}`);
+        return res.status(response.status).json({ error: 'Failed to fetch NFT data' });
+      }
+
+      data = await response.json();
     }
 
-    const data = await response.json();
     if (Array.isArray(data.result)) {
       data.result = await Promise.all(data.result.map(enrichNftMetadata));
     }
     return res.status(200).json(data);
   } catch (error) {
     console.error('Error fetching NFTs:', error);
+    if (error.status) {
+      return res.status(502).json({ error: 'Failed to fetch NFT data', upstreamStatus: error.status });
+    }
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
