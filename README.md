@@ -72,7 +72,7 @@ NFTを実物商品と交換できるWeb3アプリケーション。ユーザー�
 - **WalletConnect** 1.8.0 - モバイルウォレット接続
 
 ### 外部サービス
-- **Moralis API** - NFTメタデータ取得
+- **Alchemy NFT API** - 保有NFT・メタデータ取得（2026-11 Moralisから切り替え）
 - **Airtable API** - 注文データ保存
 - **IPFS** - NFT画像ホスティング
 - **Firebase Hosting** - Webホスティング
@@ -90,7 +90,7 @@ NFTを実物商品と交換できるWeb3アプリケーション。ユーザー�
 - Node.js 16.x 以上
 - npm 8.x 以上
 - MetaMask ブラウザ拡張機能
-- Moralis API Key
+- Alchemy API Key（Polygon Mainnet を有効化したApp）
 - Airtable Personal Access Token
 - ThirdWeb Client ID
 - Reown Project ID（WalletConnect）
@@ -116,7 +116,7 @@ cp .env.example .env
 
 **サーバーサイド環境変数**（Vercel管理画面で設定）:
 ```bash
-MORALIS_API_KEY=your_moralis_api_key
+ALCHEMY_API_KEY=your_alchemy_api_key
 AIRTABLE_API_KEY=your_airtable_api_key
 AIRTABLE_BASE_ID=your_base_id
 AIRTABLE_NFT_TABLE_ID=your_nft_table_id
@@ -130,6 +130,8 @@ NFT_CONTRACT_ADDRESS_2027=0x5ecbE52F8c34888e54393b3A83cc7a838Fe0D417
 REACT_APP_THIRDWEB_CLIENT_ID=your_thirdweb_client_id
 REACT_APP_WALLETCONNECT_PROJECT_ID=your_walletconnect_project_id
 ```
+
+thirdwebのClient IDは、thirdwebダッシュボードの **Allowed Domains** に利用ドメイン（本番・Preview・`localhost:3000`）を登録しないとRPCが401になります。
 
 WalletConnectのProject IDは [Reown Dashboard](https://dashboard.reown.com/) で発行します。Reown側のAllowlistには、本番ドメインと使用するVercel Previewドメインを登録してください。
 
@@ -181,10 +183,10 @@ npm run lint:fix
 
 | 変数名 | 説明 | 取得方法 |
 |--------|------|---------|
-| `REACT_APP_MORALIS_API_KEY` | NFTデータ取得用API Key | [Moralis](https://moralis.io/) でアカウント作成 |
+| `ALCHEMY_API_KEY` | NFTデータ取得用API Key（サーバーサイド） | [Alchemy Dashboard](https://dashboard.alchemy.com/) でApp作成 |
 | `REACT_APP_THIRDWEB_CLIENT_ID` | スマートコントラクト操作用Client ID | [ThirdWeb](https://thirdweb.com/) でアカウント作成 |
 | `REACT_APP_WALLETCONNECT_PROJECT_ID` | スマホ・QRウォレット接続用Project ID | [Reown Dashboard](https://dashboard.reown.com/) でプロジェクト作成 |
-| `REACT_APP_AIRTABLE_API_KEY` | 注文データ保存用API Key | [Airtable](https://airtable.com/create/tokens) でトークン作成 |
+| `AIRTABLE_API_KEY` | 注文データ保存用API Key（サーバーサイド） | [Airtable](https://airtable.com/create/tokens) でトークン作成 |
 
 ### セキュリティ重要事項
 
@@ -263,6 +265,15 @@ REACT_APP_WALLETCONNECT_PROJECT_ID=your_walletconnect_project_id
 1. Polygonネットワークに接続されているか確認
 2. 「Polygonネットワークに切り替える」ボタンをクリック
 3. ページをリロード
+
+### 「NFT情報の取得に失敗しました」と表示される
+
+**症状**: コンソールに `/api/moralis-nfts ... 401` または `502`
+
+**解決方法**:
+1. Vercelに `ALCHEMY_API_KEY` が設定されているか確認
+2. 設定後に再デプロイしたか確認（ビルド開始後に追加した値は反映されない）
+3. thirdwebのRPCも401なら、thirdwebの Allowed Domains にドメインがあるか確認
 
 ### 環境変数が読み込まれない
 
@@ -363,6 +374,21 @@ MLTGwebAppTest/
 
 ## 📝 変更履歴
 
+### v1.3.0 (2026-11-11)
+
+#### 修正（障害対応）
+- 🐛 引換サイトで「NFT情報の取得に失敗しました」となる不具合を解消
+  - 原因①: Moralisの無料枠が2026-09-01で終了し、NFT取得APIが401
+  - 原因②: thirdwebの Allowed Domains が `embed.ipfscdn.io` のみで、本番ドメインからのRPCが401
+
+#### 変更
+- 🔄 NFT取得をMoralisからAlchemy NFT API v3へ切り替え（PR #9）。`/api/moralis-nfts` の名前とレスポンス形式は互換のまま
+- 🔄 2026コントラクトのメタデータ補完RPCをAlchemy（Polygon）優先に変更
+- 🔒 thirdwebの Allowed Domains に `mltg-farm.metagri-labo.com`・`mlt-gweb-app2025new.vercel.app`・`localhost:3000` を追加
+- 📚 環境変数（`ALCHEMY_API_KEY`）・API仕様・トラブルシューティングを更新
+
+---
+
 ### v1.2.0 (2026-04-02)
 
 #### 追加
@@ -410,7 +436,7 @@ MLTGwebAppTest/
 - **開発**: Studymeter Inc.
 - **デザイン**: MetagriLabo
 - **Web3統合**: ThirdWeb
-- **NFTデータ**: Moralis
+- **NFTデータ**: Alchemy（2026-11まではMoralis）
 - **データベース**: Airtable
 
 ---
