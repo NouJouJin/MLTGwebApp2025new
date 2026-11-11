@@ -1,5 +1,7 @@
-// Vercel Serverless Function: Moralis Collection NFTs API Proxy
-// コレクション内のNFT一覧取得
+// Vercel Serverless Function: Collection NFTs API Proxy（旧 Moralis → 2026-11 Alchemy に切り替え）
+// コレクション内のNFT一覧取得。レスポンスは Moralis 形式 { result: [...] } を維持
+
+import { getAlchemyApiKey, getAlchemyNetwork, getNftsForContract } from './_alchemy.js';
 
 export default async function handler(req, res) {
   // CORSヘッダー
@@ -27,20 +29,31 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid collection address format' });
   }
 
-  const apiKey = process.env.MORALIS_API_KEY;
-  if (!apiKey) {
-    console.error('MORALIS_API_KEY is not configured');
+  const alchemyApiKey = getAlchemyApiKey();
+  const moralisApiKey = process.env.MORALIS_API_KEY;
+  if (!alchemyApiKey && !moralisApiKey) {
+    console.error('ALCHEMY_API_KEY is not configured');
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
   try {
+    if (alchemyApiKey) {
+      const network = getAlchemyNetwork(chain);
+      if (!network) {
+        return res.status(400).json({ error: 'Unsupported chain' });
+      }
+      const result = await getNftsForContract({ contractAddress: collection, network });
+      return res.status(200).json({ result });
+    }
+
+    // 旧経路（Moralis）。ALCHEMY_API_KEY 未設定時のみ使用
     const response = await fetch(
       `https://deep-index.moralis.io/api/v2.2/nft/${collection}?chain=${chain}&format=decimal`,
       {
         method: 'GET',
         headers: {
           'accept': 'application/json',
-          'X-API-Key': apiKey,
+          'X-API-Key': moralisApiKey,
         },
       }
     );
