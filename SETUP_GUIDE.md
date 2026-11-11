@@ -181,29 +181,24 @@ yarn install
 
 ## API Key の取得
 
-開発には以下の3つのAPI Keyが必要です。
+開発には以下のAPI Key・IDが必要です。
 
-### 1. Moralis API Key
+### 1. Alchemy API Key
 
-**用途**: NFTメタデータの取得
+**用途**: 保有NFT・メタデータの取得（サーバーサイドの `/api/moralis-nfts`・`/api/collection-nfts` で使用）
+
+> 2026-11-11 にMoralisから切り替えました。Moralisの無料枠は2026-09-01で終了しています。
 
 **取得手順**:
 
-1. [Moralis公式サイト](https://moralis.io/)にアクセス
+1. [Alchemy Dashboard](https://dashboard.alchemy.com/)にログイン
+2. 「Apps」で使用するAppを開く（本番は「MLTG-Checker」）。新規なら「Create new app」
+3. 「Endpoints」で **Polygon Mainnet** が Enabled になっていることを確認
+4. 右上の「API Key」の「Copy」でキーをコピー
+5. Vercelの `Settings` → `Environment Variables` に `ALCHEMY_API_KEY` として登録（Production、必要ならPreview）
+6. **登録後に再デプロイ**する（ビルド開始後に追加した値は反映されない）
 
-2. 「Start for Free」をクリックしてアカウント作成
-
-3. ダッシュボードにログイン
-
-4. 左メニューから「Web3 APIs」を選択
-
-5. 「Get Your API Key」をクリック
-
-6. API Keyをコピー（`uhLjLGW17H6xB1OxUtYRwz3O37P669YncgUETfC1z3JVqPMoRqexUsYaZgjMoTmY` のような文字列）
-
-**プラン**:
-- Free: 2,400 リクエスト/日（開発には十分）
-- Pro: 250,000 リクエスト/月（本番環境推奨）
+**プラン**: Freeプランで運用中（利用量はAlchemyダッシュボードの「Usage」で確認）
 
 ---
 
@@ -224,6 +219,8 @@ yarn install
 5. 「Create API Key」をクリック
 
 6. Client IDをコピー（`0c798e089b472df352906d153eefbfbc` のような文字列）
+
+7. プロジェクトの「Settings」→「Domain Restrictions」→「Allowed Domains」に利用ドメインを追記して保存（例: `mltg-farm.metagri-labo.com`、`localhost:3000`）。登録の無いドメインからはRPCが **401** になる。既存の行は消さない。反映は最大5分
 
 **無料で使用可能**
 
@@ -305,8 +302,8 @@ copy .env.example .env
 # ソースマップ生成（本番環境では false を推奨）
 GENERATE_SOURCEMAP=false
 
-# Moralis API Key
-REACT_APP_MORALIS_API_KEY=ここにMoralisのAPI Keyを貼り付け
+# Alchemy API Key（サーバーサイド。ローカルでAPIを動かす場合は .env.local に設定）
+ALCHEMY_API_KEY=ここにAlchemyのAPI Keyを貼り付け
 
 # ThirdWeb Client ID
 REACT_APP_THIRDWEB_CLIENT_ID=ここにThirdWebのClient IDを貼り付け
@@ -321,7 +318,7 @@ REACT_APP_AIRTABLE_API_KEY=ここにAirtableのAPI Keyを貼り付け
 **設定例**:
 ```bash
 GENERATE_SOURCEMAP=false
-REACT_APP_MORALIS_API_KEY=your_moralis_api_key_here
+ALCHEMY_API_KEY=your_alchemy_api_key_here
 REACT_APP_THIRDWEB_CLIENT_ID=your_thirdweb_client_id_here
 REACT_APP_WALLETCONNECT_PROJECT_ID=your_walletconnect_project_id_here
 REACT_APP_AIRTABLE_API_KEY=your_airtable_api_key_here
@@ -467,8 +464,10 @@ npm install
 
 **症状**:
 ```
-Moralis API Error: 401
+API Error: 401   （/api/moralis-nfts）
 ```
+
+> 401は旧経路（Moralis）が動いているサイン＝`ALCHEMY_API_KEY` が読めていない。Vercelでは設定後の再デプロイを確認
 
 **解決方法**:
 
@@ -568,8 +567,9 @@ kill -9 <PID>
    ```
 
 4. **API Keyを確認**:
-   - Moralis API Keyが正しいか
-   - APIの使用制限を超えていないか
+   - Alchemy API Key（`ALCHEMY_API_KEY`）が正しいか
+   - AlchemyのAppで Polygon Mainnet が有効か・使用制限を超えていないか
+   - thirdwebのRPCが401なら、Allowed Domains にドメインがあるか
 
 ---
 
@@ -617,7 +617,7 @@ Module not found: Error: Can't resolve 'buffer'
 
 ---
 
-**更新日**: 2025-10-30
-**バージョン**: 1.1.0
+**更新日**: 2026-11-11
+**バージョン**: 1.3.0
 
 **Happy Coding! 🎉**

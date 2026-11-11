@@ -1,7 +1,7 @@
 # MLTG Web Application - 技術仕様書
 
-**バージョン**: 1.1.0
-**最終更新日**: 2025年10月30日
+**バージョン**: 1.3.0
+**最終更新日**: 2026年11月11日
 **プロジェクト**: MetagriLabo Thanks Gift (MLTG) NFT交換プラットフォーム
 
 ---
@@ -74,9 +74,15 @@ MetagriLabo Thanks Gift (MLTG) は、NFTを実物商品と交換できるWeb3プ
 └──────┬──────────────────┬───────┘
        │                  │
        ▼                  ▼
+┌──────────────────────────────────┐
+│  Vercel Serverless (/api)         │
+│  - moralis-nfts / collection-nfts │
+│  - airtable-nft-info / orders     │
+└──────┬──────────────────┬────────┘
+       ▼                  ▼
 ┌─────────────┐    ┌──────────────┐
-│  Moralis    │    │  Airtable    │
-│  API        │    │  Database    │
+│  Alchemy    │    │  Airtable    │
+│  NFT API    │    │  Database    │
 │  (NFT Data) │    │  (Orders)    │
 └─────────────┘    └──────────────┘
        │
@@ -125,7 +131,9 @@ src/
 
 | サービス | 用途 | 認証方式 |
 |---------|------|---------|
-| **Moralis API** | NFTメタデータ取得 | API Key |
+| **Alchemy NFT API** | 保有NFT・メタデータ取得（2026-11-11 Moralisから切り替え） | API Key（サーバーサイド） |
+| **Alchemy RPC (Polygon)** | 2026コントラクトのオンチェーンメタデータ補完 | API Key（サーバーサイド） |
+| **thirdweb** | ウォレット接続・RPC（Client ID） | Client ID＋許可ドメイン |
 | **Airtable API** | 注文データ保存 | Personal Access Token |
 | **IPFS** | NFT画像ホスティング | パブリック |
 | **Firebase Hosting** | Webホスティング | なし |
@@ -212,7 +220,7 @@ Project IDはクライアントへ公開される識別子であり、アクセ�
 1. アカウント情報取得
 2. チェーンID取得
 3. チェーン名変換
-4. Moralis APIでNFT取得（特定コントラクトのみ）
+4. `/api/moralis-nfts` 経由でAlchemy NFT APIからNFT取得（特定コントラクトのみ）
 5. 並列処理でAirtable情報取得
 6. NFTリストをソート（発行日順）
 7. State更新
@@ -328,10 +336,11 @@ if (Object.keys(errors).length > 0) {
 #### APIエラー
 
 ```javascript
-// Moralis API エラー
+// NFT取得API（/api/moralis-nfts → Alchemy）エラー
 if (!resNftData.ok) {
-  throw new Error(`Moralis API Error: ${resNftData.status}`);
+  throw new Error(`API Error: ${resNftData.status}`);
 }
+// 上流（Alchemy）が失敗した場合、APIは 502 と upstreamStatus を返す
 
 // Airtable API エラー
 if (!resTokenInfo.ok) {
@@ -351,7 +360,8 @@ sequenceDiagram
     participant User
     participant App
     participant MetaMask
-    participant Moralis
+    participant API as Vercel API
+    participant Alchemy
     participant Airtable
 
     User->>App: MetaMask接続ボタンクリック
@@ -359,8 +369,10 @@ sequenceDiagram
     MetaMask-->>App: アカウント情報
     App->>MetaMask: eth_chainId
     MetaMask-->>App: チェーンID
-    App->>Moralis: NFT一覧取得 (特定コントラクト)
-    Moralis-->>App: NFTデータ
+    App->>API: GET /api/moralis-nfts
+    API->>Alchemy: getNFTsForOwner (特定コントラクト)
+    Alchemy-->>API: ownedNfts
+    API-->>App: Moralis互換形式 { result }
 
     loop 各NFT
         App->>Airtable: Token情報取得
@@ -406,13 +418,26 @@ sequenceDiagram
 
 #### 必須環境変数
 
+**サーバーサイド**（Vercel管理画面で設定。ブラウザには露出しない）:
+
 ```bash
-# .env
+ALCHEMY_API_KEY=your_alchemy_api_key_here        # NFT取得・Polygon RPC
+AIRTABLE_API_KEY=your_airtable_api_key_here
+AIRTABLE_BASE_ID=your_airtable_base_id_here
+AIRTABLE_NFT_TABLE_ID=your_nft_table_id_here
+AIRTABLE_ORDERS_TABLE_ID=your_orders_table_id_here
+NFT_CONTRACT_ADDRESS=0xe828376750fa25a27d67ba7f5e9908ed85f9738b
+NFT_CONTRACT_ADDRESS_2027=0x5ecbE52F8c34888e54393b3A83cc7a838Fe0D417
+# 任意: POLYGON_RPC_URL（メタデータ補完のRPCを明示する場合）
+# 旧: MORALIS_API_KEY（ALCHEMY_API_KEY 未設定時のみ使用。無料枠は2026-09-01で終了）
+```
+
+**クライアントサイド**（`REACT_APP_` はビルド時にブラウザへ埋め込まれる）:
+
+```bash
 GENERATE_SOURCEMAP=false
-REACT_APP_MORALIS_API_KEY=your_moralis_api_key_here
 REACT_APP_THIRDWEB_CLIENT_ID=your_thirdweb_client_id_here
 REACT_APP_WALLETCONNECT_PROJECT_ID=your_walletconnect_project_id_here
-REACT_APP_AIRTABLE_API_KEY=your_airtable_api_key_here
 ```
 
 #### セキュリティベストプラクティス
@@ -432,6 +457,7 @@ REACT_APP_AIRTABLE_API_KEY=your_airtable_api_key_here
    - トランザクション内容を明確に表示
    - 署名要求前に確認ダイアログ
    - Reown DashboardのAllowlistに利用ドメインのみを登録
+   - thirdwebプロジェクトの「Allowed Domains」に利用ドメインのみを登録（後述）
 
 4. **推奨される追加対策**
    - Content Security Policy (CSP) ヘッダー
@@ -442,37 +468,68 @@ REACT_APP_AIRTABLE_API_KEY=your_airtable_api_key_here
 
 ## API仕様
 
-### Moralis API
+### NFT取得（Alchemy NFT API v3）
 
-**エンドポイント**: `https://deep-index.moralis.io/api/v2.2/`
+2026-11-11 にMoralisから切り替え。ブラウザは自前のAPI（`/api/moralis-nfts`・`/api/collection-nfts`）だけを呼び、APIがAlchemyを呼ぶ。エンドポイント名とレスポンス形式（Moralis互換）は、フロント改修を避けるため据え置いている。
 
-#### NFT取得
+**実装**: `api/_alchemy.js`（共通処理。`_` 始まりのためVercelのルートにはならない）
 
-```
-GET /{address}/nft
+| 自前API | Alchemy側 | 用途 |
+|---------|-----------|------|
+| `GET /api/moralis-nfts?address=&chain=` | `GET /nft/v3/{key}/getNFTsForOwner`（`contractAddresses[]` で対象コントラクトに絞る・`withMetadata=true`・`pageSize=100`） | ウォレットの保有NFT |
+| `GET /api/collection-nfts?collection=&chain=` | `GET /nft/v3/{key}/getNFTsForContract`（`withMetadata=true`・`limit=100`） | コレクション内のNFT一覧 |
 
-Query Parameters:
-- chain: string (例: "polygon")
-- token_addresses: string[] (コントラクトアドレス、最大10件)
-- limit: number (最大100)
+- ベースURL: `https://{network}.g.alchemy.com`。`chain` の対応は `polygon`→`polygon-mainnet`、`eth`→`eth-mainnet`（それ以外は 400 `Unsupported chain`）
+- ページングは `pageKey` で最大10ページ（1,000件）まで
+- `ALCHEMY_API_KEY` が未設定のときだけ、旧経路のMoralis（`deep-index.moralis.io/api/v2.2`）を使う
 
-Headers:
-- X-API-Key: {REACT_APP_MORALIS_API_KEY}
-- accept: application/json
+**レスポンス変換（Alchemy → Moralis互換）**:
 
-Response:
+| 返却フィールド | Alchemyの元 |
+|---------------|-------------|
+| `token_address` | `contract.address`（小文字化） |
+| `token_id` | `tokenId`（10進文字列） |
+| `amount` | `balance` |
+| `contract_type` | `tokenType` |
+| `name` / `symbol` | `contract.name` / `contract.symbol` |
+| `token_uri` | `raw.tokenUri` |
+| `metadata` | `raw.metadata`（JSON文字列。空なら `null`） |
+| `normalized_metadata` | `raw.metadata`（オブジェクト） |
+
+```json
 {
   "result": [
     {
-      "token_address": "0x...",
-      "token_id": "1",
+      "token_address": "0x5ecbe52f8c34888e54393b3a83cc7a838fe0d417",
+      "token_id": "3",
+      "contract_type": "ERC1155",
+      "owner_of": "0x...",
       "amount": "1",
-      "name": "NFT Name",
+      "name": null,
       "metadata": "{...}"
     }
   ]
 }
 ```
+
+**メタデータ補完**: 2026コントラクト（`0x5ecb…d417`）でメタデータが空のトークンは、Polygon RPCで `uri(tokenId)` を呼び、IPFSからメタデータを取得して補う。RPCは `POLYGON_RPC_URL` → AlchemyのPolygon RPC → thirdweb RPC の順で使う。
+
+**エラー**: 上流（Alchemy）が失敗した場合は `502` と `{ "error": "Failed to fetch NFT data", "upstreamStatus": <Alchemyのステータス> }` を返す。
+
+### thirdweb（Client ID）
+
+- フロントの `ThirdwebProvider` が `REACT_APP_THIRDWEB_CLIENT_ID` を使い、ウォレット接続とRPC（`{chain}.rpc.thirdweb.com/{clientId}`）を行う
+- thirdwebのダッシュボード（team: metagrilabo／プロジェクト「Embed API key」）の **Project Settings → Domain Restrictions → Allowed Domains** に、利用ドメインが入っていないとRPCが **401** になる
+- 現在の許可ドメイン（2026-11-11 設定）:
+
+```
+embed.ipfscdn.io
+mltg-farm.metagri-labo.com
+mlt-gweb-app2025new.vercel.app
+localhost:3000
+```
+
+- ドメインを足す・変えるときは既存の行を消さずに追記する（`embed.ipfscdn.io` はミント用埋め込みで使用）。反映は最大5分
 
 ### Airtable API
 
@@ -664,6 +721,8 @@ Project IDの実値はリポジトリへ記載しない。
 
 ### Firebase Hosting
 
+> 旧構成の記録です。現在の本番はVercel（`mltg-farm.metagri-labo.com`）で、NFT取得はAlchemy（`ALCHEMY_API_KEY`）を使います。以下の `REACT_APP_MORALIS_API_KEY` などは使用していません。
+
 #### 初回セットアップ
 
 ```bash
@@ -723,6 +782,8 @@ exports.config = functions.https.onRequest((req, res) => {
 
 - [ ] `.env` ファイルが `.gitignore` に含まれている
 - [ ] 本番用API Keyを設定
+- [ ] Vercelに `ALCHEMY_API_KEY` を設定（Production／必要ならPreview）
+- [ ] thirdwebの Allowed Domains に本番・Previewドメインを設定
 - [ ] Vercelに `REACT_APP_WALLETCONNECT_PROJECT_ID` を設定
 - [ ] Reown Allowlistに本番・Previewドメインを設定
 - [ ] 環境変数設定後に再デプロイ
@@ -751,6 +812,20 @@ console.log('Chain:', chainName);
 console.log('Account:', account);
 console.log('NFTs:', nfts);
 ```
+
+#### 1-2. 「NFT情報の取得に失敗しました」（`/api/moralis-nfts` が 401／502）
+
+**確認順**:
+1. Vercelの `ALCHEMY_API_KEY` が Production に設定されているか
+2. 環境変数を追加・変更した**後に**再デプロイしたか（ビルド開始後に追加した値は反映されない）
+3. Alchemyダッシュボードで、使用しているApp（MLTG-Checker）の Polygon Mainnet が Enabled か
+4. 401が返る場合は、まだ旧経路（Moralis）が動いている＝`ALCHEMY_API_KEY` が読めていない
+
+#### 1-3. thirdwebのRPCが 401（`polygon.rpc.thirdweb.com/<clientId>`）
+
+**原因**: thirdwebプロジェクトの Allowed Domains にアクセス元ドメインが無い
+
+**解決方法**: thirdwebダッシュボード → 対象プロジェクト → Project Settings → Domain Restrictions に、ドメインを追記して保存（反映は最大5分）
 
 #### 2. 環境変数が読み込まれない
 
@@ -786,7 +861,10 @@ npm start
 - [ThirdWeb公式ドキュメント](https://portal.thirdweb.com/)
 - [Reown Dashboard](https://dashboard.reown.com/)
 - [Reown公式ドキュメント](https://docs.reown.com/)
-- [Moralis API リファレンス](https://docs.moralis.io/)
+- [Alchemy NFT API リファレンス](https://www.alchemy.com/docs)
+- [Alchemy Dashboard](https://dashboard.alchemy.com/)
+- [thirdweb Dashboard](https://thirdweb.com/team)
+- [Moralis API リファレンス](https://docs.moralis.io/)（旧経路）
 - [Airtable API リファレンス](https://airtable.com/developers/web/api/introduction)
 - [Firebase Hosting ガイド](https://firebase.google.com/docs/hosting)
 
@@ -808,6 +886,7 @@ npm start
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|---------|--------|
+| 1.3.0 | 2026-11-11 | NFT取得をMoralisからAlchemyへ切り替え（PR #9）。thirdwebの許可ドメインに本番・Vercelドメインを追加。環境変数・API仕様・トラブルシューティングを更新 | Claude |
 | 1.2.0 | 2026-07-28 | Reown Project ID、WalletConnectモバイル接続、Allowlist設定を追記 | Codex |
 | 1.1.0 | 2025-10-30 | フォームバリデーション、エラーハンドリング、UX改善追加 | Claude Code |
 | 1.0.0 | 2025-01-03 | 初版作成 | - |

@@ -48,6 +48,8 @@
 
 ユーザーが所有するNFTの一覧を取得します。
 
+> 2026-11-11 から取得元は **Alchemy NFT API v3（getNFTsForOwner）**。エンドポイント名（`moralis-nfts`）とレスポンス形式はMoralis互換のまま据え置いています。`ALCHEMY_API_KEY` が未設定のときだけ旧経路（Moralis）を使います。
+
 ### エンドポイント
 
 ```
@@ -59,7 +61,7 @@ GET /api/moralis-nfts
 | パラメータ | 型 | 必須 | 説明 |
 |-----------|-------|------|------|
 | `address` | string | ✅ | ウォレットアドレス（0x...） |
-| `chain` | string | ✅ | ブロックチェーン名（polygon, eth等） |
+| `chain` | string | ✅ | `polygon` または `eth`（それ以外は 400 `Unsupported chain`） |
 
 ### リクエスト例
 
@@ -78,20 +80,24 @@ const data = await response.json();
 
 ```json
 {
-  "total": 2,
-  "page": 0,
-  "page_size": 100,
   "result": [
     {
-      "token_address": "0x...",
+      "token_address": "0xe828376750fa25a27d67ba7f5e9908ed85f9738b",
       "token_id": "1",
+      "contract_type": "ERC1155",
+      "owner_of": "0x...",
       "amount": "1",
-      "name": "MLTG Collection",
-      "metadata": "{...}"
+      "name": "MetagriLabo Thanks Gift Farming 2026",
+      "symbol": null,
+      "token_uri": "ipfs://...",
+      "metadata": "{...}",
+      "normalized_metadata": { "name": "...", "image": "ipfs://..." }
     }
   ]
 }
 ```
+
+> Moralis時代の `total`・`page`・`page_size` は返しません（フロントは `result` のみ使用）。
 
 ### レスポンスフィールド
 
@@ -101,7 +107,9 @@ const data = await response.json();
 | `token_id` | string | トークンID |
 | `amount` | string | 所有数量 |
 | `name` | string | コントラクト名 |
-| `metadata` | string | JSON形式のメタデータ |
+| `metadata` | string \| null | JSON形式のメタデータ（空なら null） |
+| `contract_type` | string | `ERC1155` など |
+| `normalized_metadata` | object \| null | メタデータのオブジェクト版 |
 
 ---
 
@@ -293,6 +301,8 @@ await contract.erc1155.transfer(toAddress, tokenId, amount);
 | 400 | バリデーションエラー | リクエストパラメータを確認 |
 | 405 | メソッド不許可 | 正しいHTTPメソッドを使用 |
 | 500 | サーバーエラー | 環境変数の設定を確認 |
+| 502 | 上流API（Alchemy）エラー。`upstreamStatus` に元のステータス | Alchemyのキー・App設定・利用量を確認 |
+| 401 | 旧経路（Moralis）が拒否 | `ALCHEMY_API_KEY` の設定と再デプロイを確認 |
 
 ### トランザクションエラー
 
@@ -333,12 +343,13 @@ try {
 
 ## 参考リンク
 
-- [Moralis API ドキュメント](https://docs.moralis.io/web3-data-api/evm/reference)
+- [Alchemy NFT API ドキュメント](https://www.alchemy.com/docs)
+- [Moralis API ドキュメント](https://docs.moralis.io/web3-data-api/evm/reference)（旧経路）
 - [Airtable API ドキュメント](https://airtable.com/developers/web/api/introduction)
 - [ThirdWeb SDK ドキュメント](https://portal.thirdweb.com/typescript/v4)
 - [ethers.js ドキュメント](https://docs.ethers.io/v5/)
 
 ---
 
-**更新日**: 2025-12-26
-**バージョン**: 2.0.0 (セキュリティ強化版)
+**更新日**: 2026-11-11
+**バージョン**: 2.1.0（NFT取得をAlchemyへ切り替え）
